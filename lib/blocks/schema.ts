@@ -18,6 +18,7 @@ const blockId = z.string().regex(/^[a-z0-9-]{3,40}$/);
 const imageRef = z.string().url().max(600);
 
 export const CTA_TARGETS = ["contact", "valuation", "listings"] as const;
+export const IMAGE_SIZES = ["small", "medium", "large"] as const;
 
 export const HeroBlock = z.object({
   type: z.literal("hero"),
@@ -39,6 +40,7 @@ export const AboutBlock = z.object({
     headline: plain(90),
     body: plain(1400),
     image: imageRef.optional(),
+    imageSize: z.enum(IMAGE_SIZES).optional(),
   }),
 });
 

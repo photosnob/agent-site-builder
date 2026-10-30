@@ -5,7 +5,14 @@ import { LeadForm } from "./LeadForm";
 
 type Agent = Partial<AgentProfile>;
 
-const anchorFor = (t: string) => (t === "listings" ? "#listings" : t === "valuation" ? "#contact?intent=valuation" : "#contact");
+// Photo sizes for the About section. Fixed presets so every size still looks designed.
+const ABOUT_LAYOUT = {
+  small: { grid: "md:grid-cols-[1fr_3fr]", img: "mx-auto max-w-[220px] md:max-w-none" },
+  medium: { grid: "md:grid-cols-[1fr_2fr]", img: "mx-auto max-w-[320px] md:max-w-none" },
+  large: { grid: "md:grid-cols-[2fr_3fr]", img: "" },
+} as const;
+
+const anchorFor =(t: string) => (t === "listings" ? "#listings" : t === "valuation" ? "#contact?intent=valuation" : "#contact");
 
 export function SiteRenderer({
   content,
@@ -99,10 +106,10 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
     }
     case "about":
       return (
-        <div id="about" className="site-container grid gap-10 py-16 md:grid-cols-[2fr_3fr] md:py-24">
+        <div id="about" className={`site-container grid items-start gap-10 py-16 md:py-24 ${ABOUT_LAYOUT[b.props.imageSize ?? "large"].grid}`}>
           {(b.props.image ?? headshot) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.props.image ?? headshot} alt={agent.name ?? ""} className="aspect-square w-full object-cover" style={{ borderRadius: "var(--radius)" }} />
+            <img src={b.props.image ?? headshot} alt={agent.name ?? ""} className={`aspect-square w-full object-cover ${ABOUT_LAYOUT[b.props.imageSize ?? "large"].img}`} style={{ borderRadius: "var(--radius)" }} />
           ) : <div />}
           <div>
             <h2 className="site-heading text-3xl sm:text-4xl">{b.props.headline}</h2>

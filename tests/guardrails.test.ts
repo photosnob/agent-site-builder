@@ -65,3 +65,12 @@ test("Fair Housing violations block an edit", () => {
   const r = applyEditPlan({ summary: "", ops: [{ op: "set_text", blockId: "about-bbbb", path: "body", value: "Adults only building." }] }, ctx);
   assert.equal(r.ok, false);
 });
+
+test("About photo size can be set to a preset only", () => {
+  const r = applyEditPlan({ summary: "", ops: [{ op: "set_image_size", blockId: "about-bbbb", size: "small" }] }, ctx);
+  assert.equal(r.ok, true);
+  const about = r.content.blocks.find((b) => b.type === "about");
+  assert.equal(about?.type === "about" && about.props.imageSize, "small");
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "set_image_size", blockId: "hero-aaaa", size: "small" }] }, ctx).ok, false);
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "set_text", blockId: "about-bbbb", path: "imageSize", value: "tiny" }] }, ctx).ok, false);
+});

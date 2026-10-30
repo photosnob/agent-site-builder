@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BLOCK_TYPES, Block, REQUIRED_BLOCKS, SiteContent, imagesIn, newBlockId } from "../blocks/schema";
+import { BLOCK_TYPES, Block, IMAGE_SIZES, REQUIRED_BLOCKS, SiteContent, imagesIn, newBlockId } from "../blocks/schema";
 import { Theme } from "../blocks/theme";
 import type { SiteAsset } from "../types";
 import { lintClaims, lintFairHousing, type Finding } from "./fairHousing";
@@ -17,6 +17,7 @@ const textPath = z
 export const EditOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("set_text"), blockId: z.string(), path: textPath, value: z.string().max(1400) }),
   z.object({ op: z.literal("set_image"), blockId: z.string(), assetId: z.string() }),
+  z.object({ op: z.literal("set_image_size"), blockId: z.string(), size: z.enum(IMAGE_SIZES) }),
   z.object({ op: z.literal("add_block"), type: z.enum(BLOCK_TYPES), afterBlockId: z.string(), props: z.record(z.string(), z.unknown()) }),
   z.object({ op: z.literal("remove_block"), blockId: z.string() }),
   z.object({ op: z.literal("move_block"), blockId: z.string(), afterBlockId: z.string() }),
@@ -36,7 +37,7 @@ export const EditPlan = z.object({
 export type EditPlan = z.infer<typeof EditPlan>;
 
 /** Fields an edit may never write with set_text. Images go through set_image only. */
-const NON_TEXT_FIELDS = new Set(["image", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
+const NON_TEXT_FIELDS = new Set(["image", "imageSize", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
 
 export interface GuardContext {
   content: SiteContent;
@@ -83,6 +84,13 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
         if (idx < 0 || !asset) { at("unknown block or image"); break; }
         if (!["hero", "about"].includes(blocks[idx].type as string)) { at("this block has no main image"); break; }
         (blocks[idx].props as Record<string, unknown>).image = asset.url;
+        break;
+      }
+      case "set_image_size": {
+        const idx = find(op.blockId);
+        if (idx < 0) { at(`no block ${op.blockId}`); break; }
+        if (blocks[idx].type !== "about") { at("photo size can only be changed in the About section"); break; }
+        (blocks[idx].props as Record<string, unknown>).imageSize = op.size;
         break;
       }
       case "add_block": {
