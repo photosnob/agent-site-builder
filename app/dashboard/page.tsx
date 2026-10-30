@@ -18,8 +18,11 @@ export default async function Dashboard() {
     supabase.from("leads").select("id, name, email, phone, intent, message, created_at").eq("site_id", site.id).order("created_at", { ascending: false }).limit(20),
   ]);
 
-  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "lvh.me:3000";
-  const liveUrl = `${root.startsWith("lvh.me") || root.startsWith("localhost") ? "http" : "https"}://${site.slug}.${root}`;
+  // With a root domain configured, sites live at <slug>.<root>; until then, at /s/<slug> on this app.
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
+  const liveUrl = root
+    ? `${root.startsWith("lvh.me") || root.startsWith("localhost") ? "http" : "https"}://${site.slug}.${root}`
+    : `/s/${site.slug}`;
 
   return (
     <Editor

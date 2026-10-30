@@ -60,7 +60,7 @@ export function Editor(props: {
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${props.status === "live" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
             {props.status === "live" ? "Live" : "Draft"}
           </span>
-          {props.status === "live" && <a href={props.liveUrl} target="_blank" className="text-sm text-stone-500 underline">{props.liveUrl.replace(/^https?:\/\//, "")}</a>}
+          {props.status === "live" && <a href={props.liveUrl} target="_blank" className="text-sm text-stone-500 underline">{props.liveUrl.startsWith("/") ? "View live site ↗" : props.liveUrl.replace(/^https?:\/\//, "")}</a>}
         </div>
         <div className="flex gap-2">
           <button className="btn-ghost" disabled={!!busy} onClick={async () => { if (await call("undo", `${base}/undo`)) { setPreviewKey((k) => k + 1); router.refresh(); } }}>Undo</button>
