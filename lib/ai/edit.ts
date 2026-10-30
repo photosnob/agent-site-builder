@@ -1,0 +1,59 @@
+import type { SiteContent } from "../blocks/schema";
+import { FONT_PAIRS, type Theme } from "../blocks/theme";
+import { EditPlan, applyEditPlan, describeForModel, type GuardResult } from "../guardrails/ops";
+import { TEMPLATES, type TemplateId } from "../templates";
+import type { AgentProfile, ImportData, SiteAsset } from "../types";
+import { callStructured, untrusted } from "./claude";
+import { factsOf } from "./generate";
+
+export async function planAndApplyEdit(input: {
+  prompt: string;
+  content: SiteContent;
+  theme: Theme;
+  templateId: TemplateId;
+  agent: AgentProfile;
+  assets: SiteAsset[];
+  imported?: ImportData | null;
+}): Promise<GuardResult & { plan: EditPlan }> {
+  const t = TEMPLATES[input.templateId];
+  const plan = await callStructured({
+    toolName: "propose_edit",
+    toolDescription: "Propose a small set of edit operations for the agent's website.",
+    schema: EditPlan,
+    maxTokens: 3000,
+    system: [
+      "You edit a real estate agent's website by returning edit operations. You never write HTML, CSS or code.",
+      "Scope: copy, section order, adding/removing sections, swapping images from the agent's library, and choosing among the listed style options.",
+      "Out of scope — set `refusal` and return no ops: adding scripts, embeds, tracking or custom code; changing license number, brokerage or legal disclaimers (they're managed in Profile); editing other sites; anything unrelated to the website.",
+      "Rules:",
+      "- Make the smallest change that satisfies the request. Keep block ids exactly as given.",
+      "- Don't invent facts: no new numbers, rankings, awards, sales volume, or testimonials beyond what's in the agent facts or the request itself.",
+      "- Fair Housing: describe properties and places, never who should live there. No race, religion, national origin, sex, disability, familial status, or school-quality claims.",
+      "- Paths for set_text are relative to props, e.g. 'headline' or 'items.1.blurb'.",
+      "- add_block props must match that block type's fields as used elsewhere on the page.",
+      `- Style options: palette one of ${t.allowedPalettes.join(", ")}; fonts one of ${Object.keys(FONT_PAIRS).join(", ")}; radius none|soft|round; heroStyle full-bleed|split|centered.`,
+      "- summary: one or two plain sentences telling the agent what will change.",
+    ].join("\n"),
+    user: [
+      `Agent facts (trusted):\n${factsOf(input.agent)}`,
+      `Image library:\n${JSON.stringify(input.assets.map((a) => ({ assetId: a.id, kind: a.kind, ...a.meta })))}`,
+      `Current theme: ${JSON.stringify(input.theme)}`,
+      untrusted("current_page_blocks", describeForModel(input.content)),
+      `Agent's request:\n${input.prompt}`,
+    ].join("\n\n"),
+  });
+
+  if (plan.refusal) {
+    return { plan, ok: false, content: input.content, theme: input.theme, errors: [plan.refusal], warnings: [], changedText: [] };
+  }
+
+  const result = applyEditPlan(plan, {
+    content: input.content,
+    theme: input.theme,
+    allowedPalettes: t.allowedPalettes,
+    assets: input.assets,
+    // The agent's own request counts as a stated fact (e.g. "add that I sold 40 homes").
+    knownFacts: `${factsOf(input.agent, input.imported)}\n${input.prompt}`,
+  });
+  return { ...result, plan };
+}
