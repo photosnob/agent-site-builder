@@ -5,7 +5,7 @@ import { appUrl } from "@/lib/siteUrls";
 export default function robots(): MetadataRoute.Robots {
   const app = appUrl();
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api/", "/preview", "/onboarding", "/auth/", "/h/"] }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api/", "/preview", "/onboarding", "/auth/", "/h/", "/reset-password"] }],
     sitemap: app ? `${app}/sitemap.xml` : undefined,
   };
 }

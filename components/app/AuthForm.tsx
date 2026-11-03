@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(params.get("error") === "link" ? "That link has expired or was already used. Try signing in, or request a new link." : null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +30,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       else router.push("/onboarding");
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
+      if (error) setError(/invalid login/i.test(error.message) ? "That email and password don't match. Forgot your password?" : error.message);
       else router.push(params.get("next") || "/dashboard");
     }
     setBusy(false);
@@ -45,7 +45,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <input id="email" name="email" type="email" required className="input" autoComplete="email" />
         </div>
         <div>
-          <label className="label" htmlFor="password">Password</label>
+          <div className="flex items-baseline justify-between">
+            <label className="label" htmlFor="password">Password</label>
+            {mode === "login" && <Link href="/forgot-password" className="text-xs text-stone-500 underline hover:text-stone-900">Forgot password?</Link>}
+          </div>
           <input id="password" name="password" type="password" required minLength={8} className="input" autoComplete={mode === "signup" ? "new-password" : "current-password"} />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
