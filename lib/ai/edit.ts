@@ -14,9 +14,12 @@ export async function planAndApplyEdit(input: {
   agent: AgentProfile;
   assets: SiteAsset[];
   imported?: ImportData | null;
-}): Promise<GuardResult & { plan: EditPlan }> {
+  siteId: string;
+  userId: string;
+}): Promise<GuardResult & { plan: EditPlan; usageEventId: string | null }> {
   const t = TEMPLATES[input.templateId];
-  const plan = await callStructured({
+  const { data: plan, usageEventId } = await callStructured({
+    track: { feature: "edit", siteId: input.siteId, userId: input.userId, prompt: input.prompt },
     toolName: "propose_edit",
     toolDescription: "Propose a small set of edit operations for the agent's website.",
     schema: EditPlan,
@@ -45,7 +48,7 @@ export async function planAndApplyEdit(input: {
   });
 
   if (plan.refusal) {
-    return { plan, ok: false, content: input.content, theme: input.theme, errors: [plan.refusal], warnings: [], changedText: [] };
+    return { plan, usageEventId, ok: false, content: input.content, theme: input.theme, errors: [plan.refusal], warnings: [], changedText: [] };
   }
 
   const result = applyEditPlan(plan, {
@@ -56,5 +59,5 @@ export async function planAndApplyEdit(input: {
     // The agent's own request counts as a stated fact (e.g. "add that I sold 40 homes").
     knownFacts: `${factsOf(input.agent, input.imported)}\n${input.prompt}`,
   });
-  return { ...result, plan };
+  return { ...result, plan, usageEventId };
 }

@@ -4,6 +4,7 @@ import { lintClaims, lintFairHousing, type Finding } from "../guardrails/fairHou
 import { TEMPLATES, type TemplateId } from "../templates";
 import type { AgentProfile, ImportData, SiteAsset } from "../types";
 import { aiEnabled, callStructured, untrusted } from "./claude";
+import type { TrackInfo } from "./usage";
 
 /**
  * The model writes copy only. Structure, images, testimonials and stats are
@@ -56,11 +57,12 @@ function defaultCopy(agent: AgentProfile): Copy {
   };
 }
 
-async function writeCopy(agent: AgentProfile, templateId: TemplateId, imported?: ImportData | null): Promise<Copy> {
+async function writeCopy(agent: AgentProfile, templateId: TemplateId, imported: ImportData | null | undefined, track: TrackInfo): Promise<Copy> {
   if (!aiEnabled()) return defaultCopy(agent);
   const t = TEMPLATES[templateId];
   try {
-    return await callStructured({
+    const { data } = await callStructured({
+      track,
       toolName: "write_site_copy",
       toolDescription: "Return the copy for each section of the agent's website.",
       schema: Copy,
@@ -80,6 +82,7 @@ async function writeCopy(agent: AgentProfile, templateId: TemplateId, imported?:
         imported?.bio ? untrusted("bio_from_existing_website", imported.bio) : "",
       ].join("\n\n"),
     });
+    return data;
   } catch (e) {
     console.error("copy generation failed, using defaults", e);
     return defaultCopy(agent);
@@ -91,9 +94,11 @@ export async function generateSite(input: {
   templateId: TemplateId;
   assets: SiteAsset[];
   imported?: ImportData | null;
+  siteId?: string;
+  userId?: string;
 }): Promise<{ content: SiteContent; warnings: Finding[] }> {
   const { agent, templateId, assets, imported } = input;
-  const copy = await writeCopy(agent, templateId, imported);
+  const copy = await writeCopy(agent, templateId, imported, { feature: "generate", siteId: input.siteId, userId: input.userId });
   const fallback = defaultCopy(agent);
   const facts = factsOf(agent, imported);
   const warnings: Finding[] = [];

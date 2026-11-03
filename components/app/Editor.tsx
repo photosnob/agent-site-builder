@@ -17,7 +17,7 @@ const SUGGESTIONS = [
 
 export function Editor(props: {
   siteId: string; slug: string; status: string; liveUrl: string; publishedAt: string | null;
-  aiReady: boolean; revisions: Rev[]; leads: Lead[];
+  aiReady: boolean; revisions: Rev[]; leads: Lead[]; editsLeft: number; editsLimit: number;
 }) {
   const router = useRouter();
   const frame = useRef<HTMLIFrameElement>(null);
@@ -28,6 +28,7 @@ export function Editor(props: {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"edit" | "history" | "leads">("edit");
   const [previewKey, setPreviewKey] = useState(0);
+  const [editsLeft, setEditsLeft] = useState(props.editsLeft);
 
   const base = `/api/sites/${props.siteId}`;
   const previewSrc = `/preview/${props.siteId}${proposal?.revisionId ? `?rev=${proposal.revisionId}` : ""}`;
@@ -37,6 +38,7 @@ export function Editor(props: {
     try {
       const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
       const data = await res.json();
+      if (typeof data.remainingToday === "number") setEditsLeft(data.remainingToday);
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       return data;
     } catch (e) { setError((e as Error).message); return null; } finally { setBusy(null); }
@@ -89,9 +91,12 @@ export function Editor(props: {
                 <label className="label" htmlFor="prompt">What would you like to change?</label>
                 <textarea id="prompt" className="input" rows={4} maxLength={1000} value={prompt} disabled={!!proposal}
                   placeholder="e.g. Make the headline warmer and mention Willow Glen" onChange={(e) => setPrompt(e.target.value)} />
-                <button className="btn w-full" disabled={!props.aiReady || !!busy || !!proposal || prompt.trim().length < 3} onClick={propose}>
+                <button className="btn w-full" disabled={!props.aiReady || !!busy || !!proposal || editsLeft <= 0 || prompt.trim().length < 3} onClick={propose}>
                   {busy === "propose" ? "Working on it…" : "Preview change"}
                 </button>
+                <p className={`text-xs ${editsLeft <= 3 ? "text-amber-700" : "text-stone-400"}`}>
+                  {editsLeft > 0 ? `${editsLeft} of ${props.editsLimit} AI edits left today` : "You've used today's AI edits. They reset at midnight."}
+                </p>
                 {!proposal && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Try</p>

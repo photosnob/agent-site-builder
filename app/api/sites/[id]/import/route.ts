@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!body.success) return fail("Enter a full URL, like https://yoursite.com");
 
   try {
-    const result = await scrapeAgentSite(body.data.url, ctx.site.agent.name ?? "");
+    const result = await scrapeAgentSite(body.data.url, ctx.site.agent.name ?? "", { siteId: ctx.site.id, userId: ctx.user.id });
     // Remember the candidate list server-side; the confirm step may only import these URLs.
     await createAdminClient()
       .from("sites")

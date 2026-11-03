@@ -21,6 +21,13 @@ Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, buil
 
 Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served from `app/h/[slug]` via `proxy.ts`.
 
+### AI usage and limits
+
+Every Claude call (site generation, import extraction, prompt edits) is logged to `ai_usage_events` with its tokens, estimated cost, latency and outcome. For edits it also records the prompt, its category (copy / layout / style / images / out of scope), and whether the agent applied or discarded it. `/admin` (restricted to `ADMIN_EMAILS`) shows daily cost by feature, spend per agent, what agents ask for, and recent prompts. From there you set:
+- **Daily AI edits per agent** (default 30, overridable per agent). Resets at midnight in the configured time zone.
+- **Global daily spend cap**. When reached, all AI features pause for the rest of the day. Generation falls back to template copy.
+- **Token rates** used for cost estimates. Check them against Anthropic's pricing for your model.
+
 ### Guardrails
 
 | Guard | Where |
@@ -42,7 +49,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash

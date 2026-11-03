@@ -16,7 +16,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!agent.success) return fail("Finish your profile first");
 
   const assets = await getAssets(site.id);
-  const { content, warnings } = await generateSite({ agent: agent.data, templateId: site.template, assets, imported: site.import_data });
+  const { content, warnings } = await generateSite({ agent: agent.data, templateId: site.template, assets, imported: site.import_data, siteId: site.id, userId: user.id });
   const theme = site.theme ?? TEMPLATES[site.template].theme;
 
   const admin = createAdminClient();

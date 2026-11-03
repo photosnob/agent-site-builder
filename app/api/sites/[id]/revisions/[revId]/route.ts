@@ -18,6 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (body.data.action === "discard") {
     await admin.from("site_revisions").update({ status: "discarded" }).eq("id", revId);
+    await admin.from("ai_usage_events").update({ outcome: "discarded" }).eq("revision_id", revId);
     return json({ ok: true });
   }
   if ((rev.warnings as unknown[]).length > 0 && !body.data.acknowledgeWarnings) {
@@ -25,5 +26,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   await admin.from("sites").update({ content: rev.content, theme: rev.theme }).eq("id", site.id);
   await admin.from("site_revisions").update({ status: "applied" }).eq("id", revId);
+  await admin.from("ai_usage_events").update({ outcome: "applied" }).eq("revision_id", revId);
   return json({ ok: true });
 }

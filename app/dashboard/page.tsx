@@ -4,6 +4,7 @@ import { Editor } from "@/components/app/Editor";
 import { aiEnabled } from "@/lib/ai/claude";
 import type { SiteRow } from "@/lib/types";
 import { publicSiteUrl } from "@/lib/siteUrls";
+import { editsLeftToday } from "@/lib/ai/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function Dashboard() {
   ]);
 
   const liveUrl = publicSiteUrl(site.slug);
+  const quota = await editsLeftToday(site.id, (site as SiteRow & { ai_daily_edit_limit?: number | null }).ai_daily_edit_limit ?? null);
 
   return (
     <Editor
@@ -29,6 +31,8 @@ export default async function Dashboard() {
       liveUrl={liveUrl}
       publishedAt={site.published_at}
       aiReady={aiEnabled()}
+      editsLeft={quota.left}
+      editsLimit={quota.limit}
       revisions={revisions ?? []}
       leads={leads ?? []}
     />
