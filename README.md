@@ -15,6 +15,12 @@ signup → profile → market → import (scan site → confirm picks) → templ
 - **Import** (`lib/import/`): fetches the agent's site through an SSRF-hardened fetcher, follows up to 3 about/listings pages, scores image candidates, and has Claude extract the bio and verbatim testimonials. The agent confirms everything; selected images are copied into Supabase Storage (never hot-linked). Only URLs from that scan can be imported.
 - **Prompt edits** (`lib/ai/edit.ts`, `lib/guardrails/ops.ts`): Claude returns up to 12 typed operations (`set_text`, `add_block`, `move_block`, `set_theme`…), never a rewritten page. The server applies them to a copy and validates the result. It's saved as a **proposed** revision; the agent previews it, then applies or discards. Undo restores the previous applied revision.
 
+### Blog
+
+Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, built on Tiptap): H2–H4 headings, bold/italic/underline/strike, links, lists, quotes, dividers, and images (upload, paste or drag in) with S/M/L/Full size presets, captions and alt text. Posts are stored as validated editor JSON (`lib/blog/content.ts`), never HTML, and rendered by our own renderer (`components/blog/PostBody.tsx`). Post images must come from the site's own storage. The post title is the page's only H1. Each post gets a table of contents built from its headings: a sticky sidebar with section highlighting on desktop, and a collapsible box on mobile. It can be turned off per post. Publishing runs the Fair Housing lint and adds BlogPosting structured data, a canonical URL and Open Graph tags.
+
+Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served from `app/h/[slug]` via `proxy.ts`.
+
 ### Guardrails
 
 | Guard | Where |
@@ -36,7 +42,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run `supabase/migrations/0001_init.sql` in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash

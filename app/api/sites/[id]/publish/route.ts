@@ -1,9 +1,9 @@
-import { revalidatePath } from "next/cache";
 import { fail, json, ownedSiteOr404 } from "@/lib/api";
 import { SiteContent } from "@/lib/blocks/schema";
 import { Theme } from "@/lib/blocks/theme";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AgentProfile } from "@/lib/types";
+import { revalidateSite } from "@/lib/siteUrls";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await ownedSiteOr404(params);
@@ -24,6 +24,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     status: "live",
     published_at: new Date().toISOString(),
   }).eq("id", site.id);
-  revalidatePath(`/s/${site.slug}`);
+  revalidateSite(site.slug, "", "/blog");
   return json({ ok: true, slug: site.slug });
 }

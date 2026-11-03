@@ -8,12 +8,12 @@ export async function proxy(req: NextRequest) {
   const host = (req.headers.get("host") || "").toLowerCase();
   const { pathname } = req.nextUrl;
 
-  // 1) Agent site on a subdomain: jane-doe.<root>/anything → /s/jane-doe/anything
+  // 1) Agent site on a subdomain: jane-doe.<root>/anything → /h/jane-doe/anything (hosted mode)
   if (!APP_HOSTS.has(host) && host.endsWith(`.${ROOT}`)) {
     const slug = host.slice(0, -(ROOT.length + 1));
     if (/^[a-z0-9-]{3,48}$/.test(slug) && !pathname.startsWith("/api/")) {
       const url = req.nextUrl.clone();
-      url.pathname = `/s/${slug}${pathname === "/" ? "" : pathname}`;
+      url.pathname = `/h/${slug}${pathname === "/" ? "" : pathname}`;
       return NextResponse.rewrite(url);
     }
   }

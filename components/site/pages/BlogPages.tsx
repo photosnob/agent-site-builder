@@ -1,0 +1,136 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { SiteShell } from "@/components/site/SiteShell";
+import { PostBody } from "@/components/blog/PostBody";
+import { TableOfContents } from "@/components/blog/TableOfContents";
+import { buildToc, plainText, readingMinutes } from "@/lib/blog/content";
+import { getPublishedPost, getPublishedPosts } from "@/lib/blog/server";
+import { getPublishedSiteBySlug } from "@/lib/sites";
+import { basePath, canonicalOrigin } from "@/lib/siteUrls";
+
+const fmtDate = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : "";
+
+async function loadSite(slug: string) {
+  const site = await getPublishedSiteBySlug(slug);
+  if (!site?.published_theme) notFound();
+  return site as typeof site & { published_theme: NonNullable<typeof site.published_theme> };
+}
+
+const hasSection = (site: Awaited<ReturnType<typeof loadSite>>, type: string) =>
+  Boolean(site.published_content?.blocks.some((b) => b.type === type));
+
+/* ---------------- Index ---------------- */
+
+export async function blogIndexMetadata(slug: string, hosted: boolean): Promise<Metadata> {
+  const site = await getPublishedSiteBySlug(slug);
+  if (!site) return {};
+  return {
+    title: `Blog | ${site.agent.name}`,
+    description: `Market updates, neighborhood guides and advice from ${site.agent.name}.`,
+    alternates: { canonical: `${canonicalOrigin(slug, hosted)}/blog` },
+  };
+}
+
+export async function BlogIndexPage({ slug, hosted }: { slug: string; hosted: boolean }) {
+  const site = await loadSite(slug);
+  const posts = await getPublishedPosts(site.id);
+  const base = basePath(slug, hosted);
+  return (
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
+      sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
+      <div className="site-container py-12 md:py-16">
+        <h1 className="site-heading text-4xl sm:text-5xl">Blog</h1>
+        {posts.length === 0 && <p className="mt-6" style={{ color: "var(--muted)" }}>No posts yet.</p>}
+        <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((p) => (
+            <a key={p.id} href={`${base}/blog/${p.slug}`} className="group block">
+              {p.cover_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.cover_image} alt="" loading="lazy" className="aspect-[3/2] w-full object-cover transition group-hover:opacity-90" style={{ borderRadius: "var(--radius)" }} />
+              ) : (
+                <div className="aspect-[3/2] w-full" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }} />
+              )}
+              <p className="mt-4 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>{fmtDate(p.published_at)}</p>
+              <h2 className="site-heading mt-1 text-xl leading-snug group-hover:underline">{p.title}</h2>
+              {p.excerpt && <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{p.excerpt}</p>}
+            </a>
+          ))}
+        </div>
+      </div>
+    </SiteShell>
+  );
+}
+
+/* ---------------- Post ---------------- */
+
+export async function blogPostMetadata(slug: string, postSlug: string, hosted: boolean): Promise<Metadata> {
+  const site = await getPublishedSiteBySlug(slug);
+  if (!site) return {};
+  const post = await getPublishedPost(site.id, postSlug);
+  if (!post) return {};
+  const description = post.meta_description || post.excerpt || plainText(post.content).slice(0, 155);
+  const url = `${canonicalOrigin(slug, hosted)}/blog/${post.slug}`;
+  return {
+    title: `${post.title} | ${site.agent.name}`,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "article", title: post.title, description, url, images: post.cover_image ? [post.cover_image] : undefined, publishedTime: post.published_at ?? undefined },
+  };
+}
+
+export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; postSlug: string; hosted: boolean }) {
+  const site = await loadSite(slug);
+  const post = await getPublishedPost(site.id, postSlug);
+  if (!post) notFound();
+  const base = basePath(slug, hosted);
+  const toc = post.show_toc ? buildToc(post.content) : [];
+  const showToc = toc.length >= 2;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.meta_description || post.excerpt || undefined,
+    image: post.cover_image || undefined,
+    datePublished: post.published_at,
+    dateModified: post.updated_at,
+    author: { "@type": "Person", name: site.agent.name },
+    mainEntityOfPage: `${canonicalOrigin(slug, hosted)}/blog/${post.slug}`,
+  };
+
+  return (
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
+      sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <article className="site-container py-10 md:py-14">
+        <div className={showToc ? "grid gap-12 lg:grid-cols-[minmax(0,1fr)_240px]" : ""}>
+          <div className="mx-auto w-full max-w-[720px]">
+            <a href={`${base}/blog`} className="text-sm" style={{ color: "var(--muted)" }}>← All posts</a>
+            <h1 className="site-heading mt-4 text-4xl leading-tight sm:text-5xl">{post.title}</h1>
+            <p className="mt-4 text-sm" style={{ color: "var(--muted)" }}>
+              {site.agent.name} · {fmtDate(post.published_at)} · {readingMinutes(post.content)} min read
+            </p>
+            {post.cover_image && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={post.cover_image} alt="" className="mt-8 aspect-[2/1] w-full object-cover" style={{ borderRadius: "var(--radius)" }} />
+            )}
+            {showToc && <TableOfContents toc={toc} variant="inline" />}
+            <div className="mt-8">
+              <PostBody doc={post.content} />
+            </div>
+            <div className="mt-14 p-8 text-center" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }}>
+              <p className="site-heading text-2xl">Questions about buying or selling?</p>
+              <a href={`${base || "/"}#contact`} className="site-btn mt-5 inline-block">Get in touch</a>
+            </div>
+          </div>
+          {showToc && (
+            <aside>
+              <TableOfContents toc={toc} variant="sidebar" />
+            </aside>
+          )}
+        </div>
+      </article>
+    </SiteShell>
+  );
+}

@@ -1,7 +1,8 @@
 import type { Block, SiteContent } from "@/lib/blocks/schema";
-import { FONT_PAIRS, themeVars, type Theme } from "@/lib/blocks/theme";
+import type { Theme } from "@/lib/blocks/theme";
 import type { AgentProfile } from "@/lib/types";
 import { LeadForm } from "./LeadForm";
+import { SiteShell } from "./SiteShell";
 
 type Agent = Partial<AgentProfile>;
 
@@ -12,7 +13,7 @@ const ABOUT_LAYOUT = {
   large: { grid: "md:grid-cols-[2fr_3fr]", img: "" },
 } as const;
 
-const anchorFor =(t: string) => (t === "listings" ? "#listings" : t === "valuation" ? "#contact?intent=valuation" : "#contact");
+const anchorFor = (t: string) => (t === "listings" ? "#listings" : t === "valuation" ? "#contact?intent=valuation" : "#contact");
 
 export function SiteRenderer({
   content,
@@ -21,6 +22,8 @@ export function SiteRenderer({
   siteId,
   interactive = true,
   headshot,
+  base,
+  hasBlog = false,
 }: {
   content: SiteContent;
   theme: Theme;
@@ -28,28 +31,25 @@ export function SiteRenderer({
   siteId: string;
   interactive?: boolean;
   headshot?: string;
+  /** Public path prefix ("" on the agent's own domain, "/s/slug" otherwise). Omit in previews. */
+  base?: string;
+  hasBlog?: boolean;
 }) {
+  const blocks = content.blocks;
   return (
-    <div style={themeVars(theme) as React.CSSProperties} className="site-root min-h-screen">
-      {/* Fonts come from a fixed allowlist, so this URL is never user-controlled. */}
-      <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${FONT_PAIRS[theme.fonts].google}&display=swap`} />
-      <header className="site-container flex items-center justify-between py-5">
-        <a href="#" className="site-heading text-lg font-bold">{agent.name}</a>
-        <nav className="hidden gap-6 text-sm sm:flex" style={{ color: "var(--muted)" }}>
-          {content.blocks.some((b) => b.type === "featured-listings") && <a href="#listings">Listings</a>}
-          {content.blocks.some((b) => b.type === "about") && <a href="#about">About</a>}
-          <a href="#contact">Contact</a>
-        </nav>
-      </header>
-      <main>
-        {content.blocks.map((b) => (
-          <section key={b.id} data-block-id={b.id} data-block-type={b.type}>
-            <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} />
-          </section>
-        ))}
-      </main>
-      <ComplianceFooter agent={agent} />
-    </div>
+    <SiteShell
+      theme={theme}
+      agent={agent}
+      base={base}
+      hasBlog={hasBlog}
+      sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
+    >
+      {blocks.map((b) => (
+        <section key={b.id} data-block-id={b.id} data-block-type={b.type}>
+          <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} />
+        </section>
+      ))}
+    </SiteShell>
   );
 }
 
@@ -221,23 +221,4 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
         </div>
       );
   }
-}
-
-/** Rendered from the agent record, never from editable content: AI edits cannot touch it. */
-function ComplianceFooter({ agent }: { agent: Agent }) {
-  return (
-    <footer className="mt-10 border-t py-10 text-xs" style={{ borderColor: "var(--surface)", color: "var(--muted)" }}>
-      <div className="site-container space-y-2">
-        <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{agent.name}</p>
-        <p>
-          {agent.brokerage}
-          {agent.licenseNumber && <> · {agent.licenseState} License #{agent.licenseNumber}</>}
-        </p>
-        <p>
-          Equal Housing Opportunity. We are committed to compliance with all federal, state and local fair housing laws.
-          Information deemed reliable but not guaranteed. Listing information is provided by the listing brokerage.
-        </p>
-      </div>
-    </footer>
-  );
 }

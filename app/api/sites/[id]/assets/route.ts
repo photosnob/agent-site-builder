@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if ((req.headers.get("content-type") || "").startsWith("multipart/form-data")) {
     const form = await req.formData();
     const file = form.get("file");
-    const kind = z.enum(["headshot", "logo", "listing"]).safeParse(form.get("kind"));
+    const kind = z.enum(["headshot", "logo", "listing", "other"]).safeParse(form.get("kind"));
     if (!(file instanceof File) || !kind.success) return fail("Missing file or kind");
     if (file.size > 8_000_000) return fail("Images must be under 8 MB");
     try {
