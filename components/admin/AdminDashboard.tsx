@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_LABEL, FEATURES, FEATURE_LABEL, type Report } from "@/lib/ai/report";
 import type { AiSettings } from "@/lib/ai/usageShared";
+import { AiCheck } from "./AiCheck";
 
 // Categorical slots in fixed order (validated for colorblind separation).
 const SERIES_COLOR: Record<(typeof FEATURES)[number], string> = { edit: "#2a78d6", generate: "#eb6834", import_extract: "#1baf7a" };
@@ -35,7 +36,9 @@ export function AdminDashboard({ report, settings, model }: { report: Report; se
         <a href="/dashboard" className="btn-ghost">Back to app</a>
       </div>
 
-      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <AiCheck />
+
+      <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile label="Spent today" value={usd(k.todayCost)} sub={`${pct(Math.min(k.capPct, 9.99))} of ${usd(settings.globalDailySpendUsd)} daily cap`} warn={k.capPct >= 0.8} />
         <Tile label="Last 7 days" value={usd(k.cost7)} sub={`≈ ${usd(k.projectedMonthly)} / month at this pace`} />
         <Tile label="Edits today" value={String(k.editsToday)} sub={`from ${k.agentsToday} agent${k.agentsToday === 1 ? "" : "s"}`} />
@@ -124,7 +127,10 @@ export function AdminDashboard({ report, settings, model }: { report: Report; se
                     <td className="pr-3">{e.siteName}</td>
                     <td className="max-w-sm pr-3">{e.prompt}</td>
                     <td className="pr-3 text-xs text-stone-600">{e.categories.map((c) => CATEGORY_LABEL[c] ?? c).join(", ") || "—"}</td>
-                    <td className="pr-3"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${OUTCOME[e.outcome]?.cls ?? "bg-stone-100"}`}>{OUTCOME[e.outcome]?.label ?? e.outcome}</span></td>
+                    <td className="pr-3">
+                      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${OUTCOME[e.outcome]?.cls ?? "bg-stone-100"}`}>{OUTCOME[e.outcome]?.label ?? e.outcome}</span>
+                      {e.error && <p className="mt-1 max-w-xs text-xs text-red-700">{e.error}</p>}
+                    </td>
                     <td className="whitespace-nowrap text-right text-xs tabular-nums text-stone-500">{tokens(e.input_tokens)} / {tokens(e.output_tokens)}</td>
                     <td className="text-right tabular-nums">{usd(e.cost)}</td>
                   </tr>

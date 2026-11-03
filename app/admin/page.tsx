@@ -20,7 +20,7 @@ export default async function AdminPage() {
   // Fine for MVP volumes; move to SQL rollups once this passes ~50k events/month.
   const { data: events } = await admin
     .from("ai_usage_events")
-    .select("id, site_id, feature, model, prompt, categories, outcome, input_tokens, output_tokens, cost_usd, latency_ms, created_at")
+    .select("id, site_id, feature, model, prompt, categories, outcome, input_tokens, output_tokens, cost_usd, latency_ms, created_at, error")
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(50000);

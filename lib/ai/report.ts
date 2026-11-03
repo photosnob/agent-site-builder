@@ -13,6 +13,7 @@ export interface UsageEvent {
   cost_usd: number | string;
   latency_ms: number | null;
   created_at: string;
+  error?: string | null;
 }
 export interface SiteInfo { id: string; slug: string; name: string; ai_daily_edit_limit: number | null }
 

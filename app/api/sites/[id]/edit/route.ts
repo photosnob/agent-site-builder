@@ -1,5 +1,6 @@
 import { fail, json, ownedSiteOr404 } from "@/lib/api";
-import { aiEnabled } from "@/lib/ai/claude";
+import { aiEnabled, describeAiError } from "@/lib/ai/claude";
+import { isAdminEmail } from "@/lib/admin";
 import { planAndApplyEdit } from "@/lib/ai/edit";
 import { AiPausedError, categorizeOps, editsLeftToday, logUsage, updateUsageEvent } from "@/lib/ai/usage";
 import { getAssets } from "@/lib/sites";
@@ -39,8 +40,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
   } catch (e) {
     if (e instanceof AiPausedError) return fail("AI editing is paused for today. Please try again tomorrow.", 503);
-    console.error(e);
-    return fail("The editor couldn't work out that change. Try rephrasing it.", 502);
+    const err = describeAiError(e);
+    // Agents get a friendly message; admins also see the real reason.
+    const detail = isAdminEmail(user.email) ? err.detail : undefined;
+    if (err.kind === "output") return fail("The editor couldn't work out that change. Try rephrasing it.", 502, { detail });
+    return fail("AI editing isn't available right now. Please try again in a few minutes.", 502, { detail });
   }
 
   const { data: rev } = await admin.from("site_revisions").insert({

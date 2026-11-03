@@ -214,7 +214,8 @@ function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { 
       setHeadshot(r.headshots[0]?.url ?? null);
       setListings(Object.fromEntries(r.listings.map((l, i) => [l.url, { on: i < 6, address: l.address ?? "", price: l.price ?? "", status: l.status ?? "sold" }])));
       setKeepTestimonials(r.testimonials.map((_, i) => i));
-      if (!r.headshots.length && !r.listings.length) setMsg("We read the site but couldn't spot a headshot or listings. Upload them below.");
+      const found = [r.headshots.length && "a headshot", r.listings.length && `${r.listings.length} listing photo${r.listings.length === 1 ? "" : "s"}`, r.bio && "your bio", r.testimonials.length && `${r.testimonials.length} testimonial${r.testimonials.length === 1 ? "" : "s"}`].filter(Boolean);
+      setMsg([found.length ? `Found ${found.join(", ")}.` : "We read the site but couldn't spot a headshot or listings. Upload them below.", ...r.notes].join(" "));
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
 

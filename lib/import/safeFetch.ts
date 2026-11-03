@@ -10,6 +10,15 @@ import { isIP } from "node:net";
  */
 
 export class FetchBlocked extends Error {}
+/** The site refused us (bot protection, firewall). Not a problem with the URL. */
+export class SiteRefused extends Error {}
+
+// Many agent sites sit behind firewalls that reject unknown clients, so present
+// as a normal browser. We only ever fetch pages the site owner asked us to import.
+const BROWSER_HEADERS = {
+  "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+  "accept-language": "en-US,en;q=0.9",
+};
 
 function isPrivate(ip: string): boolean {
   if (isIP(ip) === 6) {
@@ -42,7 +51,7 @@ async function assertPublic(url: URL) {
 
 export async function safeFetch(
   input: string,
-  { maxBytes = 2_000_000, timeoutMs = 8000, accept = "text/html,*/*;q=0.5" } = {},
+  { maxBytes = 4_000_000, timeoutMs = 10000, accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" } = {},
 ): Promise<{ url: string; contentType: string; body: Buffer }> {
   let url = new URL(input);
   for (let hop = 0; hop < 4; hop++) {
@@ -50,12 +59,13 @@ export async function safeFetch(
     const res = await fetch(url, {
       redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),
-      headers: { "user-agent": "AgentSiteBuilderImporter/0.1 (+site import on behalf of the site owner)", accept },
+      headers: { ...BROWSER_HEADERS, accept },
     });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       url = new URL(res.headers.get("location")!, url);
       continue;
     }
+    if ([401, 403, 406, 429, 503].includes(res.status)) throw new SiteRefused(`Site refused the request (${res.status})`);
     if (!res.ok || !res.body) throw new Error(`Fetch failed: ${res.status}`);
     const len = Number(res.headers.get("content-length") || 0);
     if (len > maxBytes) throw new FetchBlocked("Response too large");

@@ -1,5 +1,5 @@
 import { fail, json, ownedSiteOr404 } from "@/lib/api";
-import { FetchBlocked } from "@/lib/import/safeFetch";
+import { FetchBlocked, SiteRefused } from "@/lib/import/safeFetch";
 import { scrapeAgentSite } from "@/lib/import/scrape";
 import { createAdminClient } from "@/lib/supabase/server";
 import { z } from "zod";
@@ -31,6 +31,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return json(result);
   } catch (e) {
     if (e instanceof FetchBlocked) return fail(`That address can't be imported (${e.message}).`, 422);
+    if (e instanceof SiteRefused) return fail("That site blocks automated readers, so we couldn't scan it. Upload your headshot and a few listing photos below instead.", 422);
     console.error(e);
     return fail("We couldn't read that site. You can upload a headshot instead.", 502);
   }

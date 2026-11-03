@@ -39,7 +39,7 @@ export function Editor(props: {
       const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
       const data = await res.json();
       if (typeof data.remainingToday === "number") setEditsLeft(data.remainingToday);
-      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      if (!res.ok) throw new Error([data.error || "Something went wrong", data.detail && `Admin detail: ${data.detail}`].filter(Boolean).join("\n"));
       return data;
     } catch (e) { setError((e as Error).message); return null; } finally { setBusy(null); }
   }
@@ -84,7 +84,7 @@ export function Editor(props: {
             ))}
           </nav>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {error && <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {error && <p className="mb-3 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
             {tab === "edit" && (
               <div className="space-y-4">
