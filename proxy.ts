@@ -4,6 +4,17 @@ import { createServerClient } from "@supabase/ssr";
 const ROOT = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "lvh.me:3000").toLowerCase();
 const APP_HOSTS = new Set([ROOT, `www.${ROOT}`, `app.${ROOT}`, "localhost:3000", "127.0.0.1:3000"]);
 
+/**
+ * Public SEO file URLs → internal route handlers. (Folders literally named
+ * sitemap.xml/robots.txt collide with Next's built-in metadata files.)
+ */
+const SEO_FILES: Record<string, string> = {
+  "/sitemap.xml": "/seo/sitemap",
+  "/robots.txt": "/seo/robots",
+  "/llms.txt": "/seo/llms",
+  "/blog/rss.xml": "/seo/rss",
+};
+
 export async function proxy(req: NextRequest) {
   const host = (req.headers.get("host") || "").toLowerCase();
   const { pathname } = req.nextUrl;
@@ -13,12 +24,20 @@ export async function proxy(req: NextRequest) {
     const slug = host.slice(0, -(ROOT.length + 1));
     if (/^[a-z0-9-]{3,48}$/.test(slug) && !pathname.startsWith("/api/")) {
       const url = req.nextUrl.clone();
-      url.pathname = `/h/${slug}${pathname === "/" ? "" : pathname}`;
+      url.pathname = `/h/${slug}${SEO_FILES[pathname] ?? (pathname === "/" ? "" : pathname)}`;
       return NextResponse.rewrite(url);
     }
   }
   // Custom domains: look up sites.custom_domain here (cache it at the edge) and
   // rewrite the same way. Left out of the MVP; see README.
+
+  // Path-mode sites: /s/<slug>/sitemap.xml etc. (robots.txt only works at a host root).
+  const pathSeo = pathname.match(/^\/s\/([a-z0-9-]{3,48})(\/sitemap\.xml|\/llms\.txt|\/blog\/rss\.xml)$/);
+  if (pathSeo) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/s/${pathSeo[1]}${SEO_FILES[pathSeo[2]]}`;
+    return NextResponse.rewrite(url);
+  }
 
   // 2) App routes: keep the Supabase session fresh.
   let res = NextResponse.next({ request: req });

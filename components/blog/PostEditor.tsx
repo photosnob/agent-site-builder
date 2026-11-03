@@ -10,9 +10,10 @@ import { looksLikeMarkdown, markdownToEditorHtml } from "@/lib/blog/markdownPast
 import { Figure } from "./figure";
 import { IMAGE_SIZES, postSlug, type PostDoc } from "@/lib/blog/content";
 import type { Finding } from "@/lib/guardrails/fairHousing";
+import { CharCount, SearchPreview } from "@/components/seo/SearchPreview";
 
 interface Post {
-  id: string; slug: string; title: string; excerpt: string | null; meta_description: string | null;
+  id: string; slug: string; title: string; excerpt: string | null; meta_description: string | null; seo_title?: string | null;
   cover_image: string | null; content: PostDoc; show_toc: boolean; status: "draft" | "published"; published_at: string | null;
 }
 
@@ -30,7 +31,7 @@ async function uploadImage(siteId: string, file: File): Promise<string> {
   return data.asset.url as string;
 }
 
-export function PostEditor({ siteId, post: initial, publicBase }: { siteId: string; post: Post; publicBase: string }) {
+export function PostEditor({ siteId, post: initial, publicBase, agentName = "", canonicalBase }: { siteId: string; post: Post; publicBase: string; agentName?: string; canonicalBase?: string }) {
   const router = useRouter();
   const [post, setPost] = useState(initial);
   const [meta, setMeta] = useState({
@@ -38,6 +39,7 @@ export function PostEditor({ siteId, post: initial, publicBase }: { siteId: stri
     slug: initial.slug,
     excerpt: initial.excerpt ?? "",
     metaDescription: initial.meta_description ?? "",
+    seoTitle: initial.seo_title ?? "",
     coverImage: initial.cover_image,
     showToc: initial.show_toc,
   });
@@ -114,6 +116,7 @@ export function PostEditor({ siteId, post: initial, publicBase }: { siteId: stri
             slug: meta.slug,
             excerpt: meta.excerpt || null,
             metaDescription: meta.metaDescription || null,
+            seoTitle: meta.seoTitle || null,
             coverImage: meta.coverImage,
             showToc: meta.showToc,
             content: editor.getJSON(),
@@ -222,9 +225,22 @@ export function PostEditor({ siteId, post: initial, publicBase }: { siteId: stri
             <label className="label" htmlFor="excerpt">Excerpt <span className="font-normal text-stone-400">(shown on the blog index)</span></label>
             <textarea id="excerpt" className="input" rows={2} maxLength={300} value={meta.excerpt} onChange={(e) => setField("excerpt", e.target.value)} />
           </div>
-          <div>
-            <label className="label" htmlFor="meta">Meta description <span className="font-normal text-stone-400">({meta.metaDescription.length}/160, for search results)</span></label>
-            <textarea id="meta" className="input" rows={2} maxLength={160} value={meta.metaDescription} onChange={(e) => setField("metaDescription", e.target.value)} />
+          <div className="space-y-4 border-t border-stone-100 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Search engines</p>
+            <div>
+              <label className="label" htmlFor="seoTitle">SEO title <CharCount value={meta.seoTitle} soft={60} /></label>
+              <input id="seoTitle" className="input" maxLength={120} value={meta.seoTitle} placeholder={`${meta.title || "Post title"} | ${agentName}`}
+                onChange={(e) => setField("seoTitle", e.target.value)} />
+              <p className="mt-1 text-xs text-stone-400">Shown in Google and browser tabs. Leave empty to use the post title.</p>
+            </div>
+            <div>
+              <label className="label" htmlFor="meta">Meta description <CharCount value={meta.metaDescription} soft={160} /></label>
+              <textarea id="meta" className="input" rows={2} maxLength={160} value={meta.metaDescription}
+                placeholder={meta.excerpt || "A one- or two-sentence summary for search results."} onChange={(e) => setField("metaDescription", e.target.value)} />
+            </div>
+            <SearchPreview url={`${canonicalBase || publicBase}/blog/${meta.slug}`}
+              title={meta.seoTitle || `${meta.title || "Post title"} | ${agentName}`}
+              description={meta.metaDescription || meta.excerpt} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={meta.showToc} onChange={(e) => setField("showToc", e.target.checked)} />

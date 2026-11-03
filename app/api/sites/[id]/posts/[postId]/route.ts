@@ -13,6 +13,7 @@ const Patch = z.object({
   slug: z.string().trim().regex(/^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/, "Use lowercase letters, numbers and dashes").optional(),
   excerpt: z.string().trim().max(300).nullable().optional(),
   metaDescription: z.string().trim().max(160).nullable().optional(),
+  seoTitle: z.string().trim().max(120).nullable().optional(),
   coverImage: z.string().url().max(800).nullable().optional(),
   content: z.unknown().optional(),
   showToc: z.boolean().optional(),
@@ -49,6 +50,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (b.title !== undefined) update.title = b.title;
   if (b.excerpt !== undefined) update.excerpt = b.excerpt || null;
   if (b.metaDescription !== undefined) update.meta_description = b.metaDescription || null;
+  if (b.seoTitle !== undefined) update.seo_title = b.seoTitle || null;
   if (b.showToc !== undefined) update.show_toc = b.showToc;
   if (b.coverImage !== undefined) {
     if (b.coverImage && !b.coverImage.startsWith(prefix)) return fail("Cover image must be uploaded through the editor", 422);
@@ -68,7 +70,7 @@ export async function PATCH(req: Request, { params }: Params) {
   // Fair Housing check whenever the post is (or stays) published.
   const willBePublished = (b.status ?? post.status) === "published";
   if (willBePublished) {
-    const text = [update.title ?? post.title, update.excerpt ?? post.excerpt ?? "", plainText((update.content ?? post.content) as never)].join("\n");
+    const text = [update.title ?? post.title, update.seo_title ?? post.seo_title ?? "", update.meta_description ?? post.meta_description ?? "", update.excerpt ?? post.excerpt ?? "", plainText((update.content ?? post.content) as never)].join("\n");
     const findings = lintFairHousing(text);
     const blocking = findings.filter((f) => f.severity === "block");
     if (blocking.length) return fail("This post can't be published as written.", 422, { findings: blocking });

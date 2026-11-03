@@ -6,11 +6,11 @@ export async function getPublishedSiteBySlug(slug: string) {
   // Select only what the public page needs.
   const { data } = await admin
     .from("sites")
-    .select("id, slug, status, agent, published_content, published_theme")
+    .select("id, slug, status, agent, published_content, published_theme, published_at, seo")
     .eq("slug", slug)
     .eq("status", "live")
     .maybeSingle();
-  return data as Pick<SiteRow, "id" | "slug" | "status" | "agent" | "published_content" | "published_theme"> | null;
+  return data as Pick<SiteRow, "id" | "slug" | "status" | "agent" | "published_content" | "published_theme" | "published_at" | "seo"> | null;
 }
 
 export async function getAssets(siteId: string): Promise<SiteAsset[]> {

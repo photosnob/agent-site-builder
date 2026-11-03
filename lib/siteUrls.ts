@@ -9,15 +9,26 @@ import { revalidatePath } from "next/cache";
  */
 export const basePath = (slug: string, hosted: boolean) => (hosted ? "" : `/s/${slug}`);
 
-export function canonicalOrigin(slug: string, hosted: boolean) {
-  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-  if (hosted && root) return `${root.startsWith("lvh.me") || root.startsWith("localhost") ? "http" : "https"}://${slug}.${root}`;
-  return `${process.env.NEXT_PUBLIC_APP_URL || ""}/s/${slug}`;
+/** This app's public origin. Falls back to the production URL Vercel provides automatically. */
+export function appUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return "";
 }
+
+/** The one public URL search engines should index (hosted subdomain whenever a root domain is set). */
+export function canonicalOrigin(slug: string, _hosted?: boolean) {
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
+  if (root) return `${root.startsWith("lvh.me") || root.startsWith("localhost") ? "http" : "https"}://${slug}.${root}`;
+  return `${appUrl()}/s/${slug}`;
+}
+
+/** Internal routes behind /sitemap.xml, /robots.txt, /llms.txt and /blog/rss.xml (see proxy.ts). */
+const SEO_FILES = ["/seo/sitemap", "/seo/robots", "/seo/llms", "/seo/rss"];
 
 /** Refresh cached public pages for a site in both modes. */
 export function revalidateSite(slug: string, ...subpaths: string[]) {
-  for (const sub of subpaths.length ? subpaths : [""]) {
+  for (const sub of [...(subpaths.length ? subpaths : [""]), ...SEO_FILES]) {
     revalidatePath(`/s/${slug}${sub}`);
     revalidatePath(`/h/${slug}${sub}`);
   }

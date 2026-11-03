@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { SiteContent } from "@/lib/blocks/schema";
 import type { Theme } from "@/lib/blocks/theme";
 import type { TemplateId } from "@/lib/templates";
+import type { SiteSeo } from "@/lib/seo/schema";
 
 /** What the agent told us in onboarding. These are the only "facts" AI may state. */
 export const AgentProfile = z.object({
@@ -51,4 +52,6 @@ export interface SiteRow {
   published_theme: Theme | null;
   custom_domain: string | null;
   published_at: string | null;
+  seo: SiteSeo | null;
+  ai_daily_edit_limit?: number | null;
 }

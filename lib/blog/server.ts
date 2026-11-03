@@ -8,6 +8,7 @@ export interface PostRow {
   title: string;
   excerpt: string | null;
   meta_description: string | null;
+  seo_title: string | null;
   cover_image: string | null;
   content: PostDoc;
   show_toc: boolean;
@@ -25,12 +26,12 @@ export function siteImagePrefix(siteId: string) {
 export async function getPublishedPosts(siteId: string, limit = 50) {
   const { data } = await createAdminClient()
     .from("blog_posts")
-    .select("id, slug, title, excerpt, cover_image, published_at, updated_at")
+    .select("id, slug, title, excerpt, meta_description, cover_image, published_at, updated_at")
     .eq("site_id", siteId)
     .eq("status", "published")
     .order("published_at", { ascending: false })
     .limit(limit);
-  return (data ?? []) as Pick<PostRow, "id" | "slug" | "title" | "excerpt" | "cover_image" | "published_at" | "updated_at">[];
+  return (data ?? []) as Pick<PostRow, "id" | "slug" | "title" | "excerpt" | "meta_description" | "cover_image" | "published_at" | "updated_at">[];
 }
 
 export async function getPublishedPost(siteId: string, slug: string) {

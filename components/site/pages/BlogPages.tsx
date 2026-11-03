@@ -7,6 +7,7 @@ import { buildToc, plainText, readingMinutes } from "@/lib/blog/content";
 import { getPublishedPost, getPublishedPosts } from "@/lib/blog/server";
 import { getPublishedSiteBySlug } from "@/lib/sites";
 import { basePath, canonicalOrigin } from "@/lib/siteUrls";
+import { seoOf } from "./HomePage";
 
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : "";
@@ -25,10 +26,12 @@ const hasSection = (site: Awaited<ReturnType<typeof loadSite>>, type: string) =>
 export async function blogIndexMetadata(slug: string, hosted: boolean): Promise<Metadata> {
   const site = await getPublishedSiteBySlug(slug);
   if (!site) return {};
+  const origin = canonicalOrigin(slug, hosted);
   return {
-    title: `Blog | ${site.agent.name}`,
+    title: { absolute: `Blog | ${site.agent.name}` },
     description: `Market updates, neighborhood guides and advice from ${site.agent.name}.`,
-    alternates: { canonical: `${canonicalOrigin(slug, hosted)}/blog` },
+    alternates: { canonical: `${origin}/blog`, types: { "application/rss+xml": `${origin}/blog/rss.xml` } },
+    robots: seoOf(site.seo).noindex ? { index: false, follow: false } : undefined,
   };
 }
 
@@ -70,12 +73,18 @@ export async function blogPostMetadata(slug: string, postSlug: string, hosted: b
   const post = await getPublishedPost(site.id, postSlug);
   if (!post) return {};
   const description = post.meta_description || post.excerpt || plainText(post.content).slice(0, 155);
-  const url = `${canonicalOrigin(slug, hosted)}/blog/${post.slug}`;
+  const origin = canonicalOrigin(slug, hosted);
+  const url = `${origin}/blog/${post.slug}`;
+  // A custom SEO title is used exactly as written; otherwise "<post title> | <agent>".
+  const title = post.seo_title || `${post.title} | ${site.agent.name}`;
+  const images = post.cover_image ? [post.cover_image] : undefined;
   return {
-    title: `${post.title} | ${site.agent.name}`,
+    title: { absolute: title },
     description,
-    alternates: { canonical: url },
-    openGraph: { type: "article", title: post.title, description, url, images: post.cover_image ? [post.cover_image] : undefined, publishedTime: post.published_at ?? undefined },
+    alternates: { canonical: url, types: { "application/rss+xml": `${origin}/blog/rss.xml` } },
+    openGraph: { type: "article", title: post.seo_title || post.title, description, url, images, publishedTime: post.published_at ?? undefined, modifiedTime: post.updated_at, authors: site.agent.name ? [site.agent.name] : undefined },
+    twitter: { card: images ? "summary_large_image" : "summary", title: post.seo_title || post.title, description, images },
+    robots: seoOf(site.seo).noindex ? { index: false, follow: false } : undefined,
   };
 }
 

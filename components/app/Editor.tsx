@@ -66,6 +66,7 @@ export function Editor(props: {
         </div>
         <div className="flex gap-2">
           <a className="btn-ghost" href="/dashboard/blog">Blog</a>
+          <a className="btn-ghost" href="/dashboard/settings">Settings</a>
           <button className="btn-ghost" disabled={!!busy} onClick={async () => { if (await call("undo", `${base}/undo`)) { setPreviewKey((k) => k + 1); router.refresh(); } }}>Undo</button>
           <button className="btn" disabled={!!busy || !!proposal} onClick={async () => { if (await call("publish", `${base}/publish`)) router.refresh(); }}>
             {busy === "publish" ? "Publishing…" : props.status === "live" ? "Publish changes" : "Publish site"}

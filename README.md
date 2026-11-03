@@ -21,6 +21,10 @@ Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, buil
 
 Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served from `app/h/[slug]` via `proxy.ts`.
 
+### SEO
+
+Generated automatically for every site and refreshed on publish: `/sitemap.xml`, `/robots.txt` (on agent subdomains), `/llms.txt`, `/blog/rss.xml`, canonical URLs, Open Graph/Twitter cards, `RealEstateAgent` structured data on the home page, and `BlogPosting` on posts. Agents can override all of this in **Settings** (`/dashboard/settings`): site title, meta description, social share image, a "hide from search engines" switch, Google Search Console verification, and a custom llms.txt (paste or upload). Each post also has its own SEO title and meta description, with a search-result preview. The app's own domain serves its own robots.txt and sitemap. Until a root domain is configured, that sitemap lists the `/s/<slug>` sites.
+
 ### AI usage and limits
 
 Every Claude call (site generation, import extraction, prompt edits) is logged to `ai_usage_events` with its tokens, estimated cost, latency and outcome. For edits it also records the prompt, its category (copy / layout / style / images / out of scope), and whether the agent applied or discarded it. `/admin` (restricted to `ADMIN_EMAILS`) shows daily cost by feature, spend per agent, what agents ask for, and recent prompts. From there you set:
@@ -49,7 +53,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash
