@@ -91,3 +91,15 @@ body {
   height: 0;
 }
 .editor-body figure.is-empty figcaption::before { content: "Add a caption (optional)"; float: none; display: block; }
+
+/* Tables (public posts and editor) */
+.post-table { overflow-x: auto; margin-block: 1.75em; }
+.post-body table { width: 100%; border-collapse: collapse; font-size: 0.95em; line-height: 1.5; }
+.post-body th, .post-body td { text-align: left; vertical-align: top; padding: 0.7em 0.9em; border-bottom: 1px solid rgba(127,127,127,0.22); }
+.post-body th { font-weight: 700; border-bottom-width: 2px; border-bottom-color: rgba(127,127,127,0.45); }
+.post-body th > * + *, .post-body td > * + * { margin-top: 0.4em; }
+.post-body th p, .post-body td p { margin: 0; }
+.editor-body .tableWrapper { margin-block: 1.25em; }
+.editor-body .tableWrapper { overflow-x: auto; }
+.editor-body td, .editor-body th { position: relative; border: 1px solid #e7e5e4; }
+.editor-body .selectedCell::after { content: ""; position: absolute; inset: 0; background: rgba(42,120,214,0.12); pointer-events: none; }

@@ -36,6 +36,31 @@ function Node({ node: n, id }: { node: DocNode; id?: string }): React.ReactNode 
       return <li>{kids()}</li>;
     case "blockquote":
       return <blockquote>{kids()}</blockquote>;
+    case "table": {
+      const rows = n.content ?? [];
+      return (
+        <div className="post-table">
+          <table>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {(r.content ?? []).map((c, ci) => {
+                    const Cell = c.type === "tableHeader" ? "th" : "td";
+                    const colSpan = Number(c.attrs?.colspan) > 1 ? Number(c.attrs?.colspan) : undefined;
+                    const rowSpan = Number(c.attrs?.rowspan) > 1 ? Number(c.attrs?.rowspan) : undefined;
+                    return (
+                      <Cell key={ci} colSpan={colSpan} rowSpan={rowSpan} scope={c.type === "tableHeader" ? (ri === 0 ? "col" : "row") : undefined}>
+                        {(c.content ?? []).map((k, ki) => <Node key={ki} node={k} />)}
+                      </Cell>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
     case "horizontalRule":
       return <hr />;
     case "hardBreak":

@@ -51,3 +51,27 @@ test("renderer outputs heading ids that match the TOC, figures and safe links", 
   assert.ok(html.includes('rel="noopener noreferrer"'));
   assert.ok(html.includes("<strong>Post-and-beam ceilings.</strong>"));
 });
+
+test("tables validate and render with header cells", async () => {
+  const cell = (type: string, text: string) => ({ type, content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const tdoc = { type: "doc", content: [{ type: "table", content: [
+    { type: "tableRow", content: [cell("tableHeader", "ADU Type"), cell("tableHeader", "Estimated Cost")] },
+    { type: "tableRow", content: [cell("tableCell", "Garage conversion"), cell("tableCell", "$100,000–$200,000")] },
+  ] }] };
+  assert.equal(validatePostDoc(tdoc, PREFIX).ok, true);
+  const html = renderToStaticMarkup(createElement(PostBody, { doc: tdoc }));
+  assert.ok(html.includes('<th scope="col"><p>ADU Type</p></th>'));
+  assert.ok(html.includes("<td><p>Garage conversion</p></td>"));
+});
+
+test("markdown from ChatGPT is detected and converted", async () => {
+  const { looksLikeMarkdown, markdownToEditorHtml } = await import("../lib/blog/markdownPaste");
+  const md = "# Costs\n\n| ADU Type | Estimated Cost |\n|---|---|\n| Garage conversion | $100,000–$200,000 |\n\n**Note:** ranges vary.\n\n- Grading\n- Retaining walls";
+  assert.equal(looksLikeMarkdown(md), true);
+  assert.equal(looksLikeMarkdown("Just a normal sentence I typed."), false);
+  const html = markdownToEditorHtml(md);
+  assert.ok(html.includes("<h2>Costs</h2>"));
+  assert.ok(html.includes("<table>") && html.includes("<th>ADU Type</th>"));
+  assert.ok(html.includes("<strong>Note:</strong>"));
+  assert.ok(!markdownToEditorHtml("![x](https://evil.com/a.png)").includes("<img"));
+});

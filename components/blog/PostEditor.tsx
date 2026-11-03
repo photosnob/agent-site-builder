@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { TableKit } from "@tiptap/extension-table";
+import { looksLikeMarkdown, markdownToEditorHtml } from "@/lib/blog/markdownPaste";
 import { Figure } from "./figure";
 import { IMAGE_SIZES, postSlug, type PostDoc } from "@/lib/blog/content";
 import type { Finding } from "@/lib/guardrails/fairHousing";
@@ -59,6 +61,7 @@ export function PostEditor({ siteId, post: initial, publicBase }: { siteId: stri
         link: { openOnClick: false, autolink: true, defaultProtocol: "https", HTMLAttributes: { rel: "noopener", target: null } },
       }),
       Figure,
+      TableKit.configure({ table: { resizable: false, HTMLAttributes: { class: "editor-table" } } }),
       Placeholder.configure({
         includeChildren: true,
         placeholder: ({ node }) => (node.type.name === "figure" ? "Add a caption (optional)" : "Start writing… Use the toolbar for headings and images."),
@@ -71,7 +74,16 @@ export function PostEditor({ siteId, post: initial, publicBase }: { siteId: stri
       transformPastedHTML: (html) => html.replace(/<(\/?)h1\b/gi, "<$1h2").replace(/<(\/?)h[56]\b/gi, "<$1h4"),
       handlePaste: (_view, event) => {
         const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
-        if (!files.length) return false;
+        if (!files.length) {
+          // Markdown pasted as plain text (e.g. ChatGPT's copy button) → formatted content.
+          const html = event.clipboardData?.getData("text/html");
+          const text = event.clipboardData?.getData("text/plain") ?? "";
+          if (!html && text && looksLikeMarkdown(text)) {
+            editorRef.current?.chain().focus().insertContent(markdownToEditorHtml(text)).run();
+            return true;
+          }
+          return false;
+        }
         files.forEach((f) => uploadImage(siteId, f).then((src) => editorRef.current?.chain().focus().insertFigure({ src }).run()).catch(onUploadError));
         return true;
       },
@@ -281,6 +293,7 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
       ordered: e.isActive("orderedList"),
       quote: e.isActive("blockquote"),
       figure: e.isActive("figure"),
+      table: e.isActive("table"),
       size: (e.getAttributes("figure").size as string | undefined) ?? "large",
       alt: (e.getAttributes("figure").alt as string | undefined) ?? "",
       canUndo: e.can().undo(),
@@ -318,6 +331,7 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
         <TB onClick={() => c().setHorizontalRule().run()} title="Divider">—</TB>
         <Sep />
         <TB onClick={onPickImage} title="Insert image (or paste / drag one in)">Image</TB>
+        <TB active={s.table} onClick={() => c().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert table">Table</TB>
         <Sep />
         <TB disabled={!s.canUndo} onClick={() => c().undo().run()} title="Undo">↶</TB>
         <TB disabled={!s.canRedo} onClick={() => c().redo().run()} title="Redo">↷</TB>
@@ -328,6 +342,19 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
           <input autoFocus className="input !py-1.5" placeholder="https://… (leave empty to remove)" value={href}
             onChange={(e) => setHref(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyLink(); } if (e.key === "Escape") setLinkOpen(false); }} />
           <button className="btn !py-1.5" onClick={applyLink}>Apply</button>
+        </div>
+      )}
+
+      {s.table && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-0.5 border-t border-stone-100 px-1 pt-1.5 text-sm">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-stone-400">Table</span>
+          <TB onClick={() => c().addRowAfter().run()} title="Add row below">+ Row</TB>
+          <TB onClick={() => c().addColumnAfter().run()} title="Add column to the right">+ Column</TB>
+          <TB onClick={() => c().deleteRow().run()} title="Delete this row">− Row</TB>
+          <TB onClick={() => c().deleteColumn().run()} title="Delete this column">− Column</TB>
+          <TB onClick={() => c().toggleHeaderRow().run()} title="Toggle header row">Header row</TB>
+          <Sep />
+          <TB onClick={() => c().deleteTable().run()} title="Delete table">Delete table</TB>
         </div>
       )}
 

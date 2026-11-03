@@ -54,6 +54,11 @@ const Block: z.ZodType<DocNode> = z.lazy(() =>
     z.object({ type: z.literal("blockquote"), content: z.array(Block).max(50) }),
     z.object({ type: z.literal("horizontalRule") }),
     z.object({
+      type: z.literal("table"),
+      attrs: z.record(z.string(), z.unknown()).optional(),
+      content: z.array(TableRow).min(1).max(200),
+    }),
+    z.object({
       type: z.literal("figure"),
       attrs: z.object({
         src: z.string().url().max(800),
@@ -64,6 +69,19 @@ const Block: z.ZodType<DocNode> = z.lazy(() =>
     }),
   ]) as z.ZodType<DocNode>,
 );
+
+const cellAttrs = z
+  .object({
+    colspan: z.number().int().min(1).max(20).optional(),
+    rowspan: z.number().int().min(1).max(200).optional(),
+    colwidth: z.array(z.number()).max(20).nullable().optional(),
+  })
+  .passthrough()
+  .optional();
+const TableCell: z.ZodType<DocNode> = z.lazy(
+  () => z.object({ type: z.enum(["tableCell", "tableHeader"]), attrs: cellAttrs, content: z.array(Block).max(20) }) as z.ZodType<DocNode>,
+);
+const TableRow: z.ZodType<DocNode> = z.lazy(() => z.object({ type: z.literal("tableRow"), content: z.array(TableCell).min(1).max(20) }) as z.ZodType<DocNode>);
 
 const ListItem: z.ZodType<DocNode> = z.lazy(() => z.object({ type: z.literal("listItem"), content: z.array(Block).max(50) }) as z.ZodType<DocNode>);
 
@@ -104,6 +122,7 @@ export function textOf(node: DocNode): string {
 /** All prose, one line per block, for linting and excerpts. */
 export function plainText(doc: DocNode): string {
   const lines: string[] = [];
+  // Paragraphs inside list items and table cells are visited too.
   walk(doc, (n) => { if (["paragraph", "heading", "figure"].includes(n.type)) lines.push(textOf(n)); });
   return lines.filter(Boolean).join("\n");
 }
