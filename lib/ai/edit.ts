@@ -1,6 +1,6 @@
 import type { SiteContent } from "../blocks/schema";
 import { FONT_PAIRS, type Theme } from "../blocks/theme";
-import { EditPlan, applyEditPlan, describeForModel, type GuardResult } from "../guardrails/ops";
+import { ModelEditPlan, applyEditPlan, describeForModel, fromModelPlan, type EditPlan, type GuardResult } from "../guardrails/ops";
 import { TEMPLATES, type TemplateId } from "../templates";
 import type { AgentProfile, ImportData, SiteAsset } from "../types";
 import { callStructured, untrusted } from "./claude";
@@ -18,11 +18,11 @@ export async function planAndApplyEdit(input: {
   userId: string;
 }): Promise<GuardResult & { plan: EditPlan; usageEventId: string | null }> {
   const t = TEMPLATES[input.templateId];
-  const { data: plan, usageEventId } = await callStructured({
+  const { data: modelPlan, usageEventId } = await callStructured({
     track: { feature: "edit", siteId: input.siteId, userId: input.userId, prompt: input.prompt },
     toolName: "propose_edit",
     toolDescription: "Propose a small set of edit operations for the agent's website.",
-    schema: EditPlan,
+    schema: ModelEditPlan,
     maxTokens: 3000,
     system: [
       "You edit a real estate agent's website by returning edit operations. You never write HTML, CSS or code.",
@@ -33,7 +33,7 @@ export async function planAndApplyEdit(input: {
       "- Don't invent facts: no new numbers, rankings, awards, sales volume, or testimonials beyond what's in the agent facts or the request itself.",
       "- Fair Housing: describe properties and places, never who should live there. No race, religion, national origin, sex, disability, familial status, or school-quality claims.",
       "- Paths for set_text are relative to props, e.g. 'headline' or 'items.1.blurb'.",
-      "- add_block props must match that block type's fields as used elsewhere on the page.",
+      "- add_block: put the new section's fields in propsJson as a JSON object string, matching that block type's fields as used elsewhere on the page. set_list_item: put the item in itemJson as a JSON object string.",
       "- The About section photo can be resized with set_image_size: small, medium or large (default large). \"Smaller\" from large means medium; from medium means small. Other images can't be resized.",
       `- Style options: palette one of ${t.allowedPalettes.join(", ")}; fonts one of ${Object.keys(FONT_PAIRS).join(", ")}; radius none|soft|round; heroStyle full-bleed|split|centered.`,
       "- summary: one or two plain sentences telling the agent what will change.",
@@ -47,6 +47,10 @@ export async function planAndApplyEdit(input: {
     ].join("\n\n"),
   });
 
+  const { plan, errors: conversionErrors } = fromModelPlan(modelPlan);
+  if (conversionErrors.length && !plan.refusal) {
+    return { plan, usageEventId, ok: false, content: input.content, theme: input.theme, errors: conversionErrors, warnings: [], changedText: [] };
+  }
   if (plan.refusal) {
     return { plan, usageEventId, ok: false, content: input.content, theme: input.theme, errors: [plan.refusal], warnings: [], changedText: [] };
   }

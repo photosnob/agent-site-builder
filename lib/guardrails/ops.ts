@@ -36,6 +36,53 @@ export const EditPlan = z.object({
 });
 export type EditPlan = z.infer<typeof EditPlan>;
 
+/**
+ * What the model returns. Same as EditPlan, except free-form objects (a new
+ * section's fields, a list item) arrive as JSON strings, because strict
+ * structured outputs can't describe open-ended objects. fromModelPlan converts
+ * it; anything malformed becomes an error the agent sees, never a silent edit.
+ */
+const modelOps = EditOp.options.map((o) => {
+  const op = o.shape.op.value;
+  if (op === "add_block")
+    return z.object({ op: z.literal("add_block"), type: z.enum(BLOCK_TYPES), afterBlockId: z.string(), propsJson: z.string().max(6000).describe("The new section's props as a JSON object string, using the same fields as that block type elsewhere on the page") });
+  if (op === "set_list_item")
+    return z.object({ op: z.literal("set_list_item"), blockId: z.string(), index: z.number().int().min(0).max(11), itemJson: z.string().max(3000).describe("The list item as a JSON object string") });
+  return o;
+});
+export const ModelEditPlan = z.object({
+  summary: z.string().max(400),
+  refusal: z.string().max(400).optional(),
+  ops: z.array(z.discriminatedUnion("op", modelOps as unknown as [z.ZodObject, ...z.ZodObject[]])).max(12),
+});
+export type ModelEditPlan = z.infer<typeof ModelEditPlan>;
+
+export function fromModelPlan(m: ModelEditPlan): { plan: EditPlan; errors: string[] } {
+  const errors: string[] = [];
+  const ops: EditOp[] = [];
+  const obj = (s: string, what: string) => {
+    try {
+      const v = JSON.parse(s);
+      if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+    } catch { /* fall through */ }
+    errors.push(`The editor sent an unreadable ${what}.`);
+    return null;
+  };
+  for (const raw of m.ops as Record<string, unknown>[]) {
+    if (raw.op === "add_block") {
+      const props = obj(String(raw.propsJson ?? ""), "new section");
+      if (props) ops.push({ op: "add_block", type: raw.type as EditOp & never, afterBlockId: String(raw.afterBlockId), props });
+    } else if (raw.op === "set_list_item") {
+      const item = obj(String(raw.itemJson ?? ""), "list item");
+      if (item) ops.push({ op: "set_list_item", blockId: String(raw.blockId), index: Number(raw.index), item });
+    } else {
+      const p = EditOp.safeParse(raw);
+      if (p.success) ops.push(p.data); else errors.push("The editor sent an operation we couldn't read.");
+    }
+  }
+  return { plan: { summary: m.summary, refusal: m.refusal, ops }, errors };
+}
+
 /** Fields an edit may never write with set_text. Images go through set_image only. */
 const NON_TEXT_FIELDS = new Set(["image", "imageSize", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
 

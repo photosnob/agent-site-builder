@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
 import { AiPausedError, assertUnderGlobalCap, logUsage, type TrackInfo } from "./usage";
 
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY?.trim());
@@ -39,24 +40,28 @@ export function stripNulls(v: unknown): unknown {
   return v;
 }
 
-export function toolSchema(schema: z.ZodType) {
-  const s = z.toJSONSchema(schema, { target: "draft-7", io: "input" }) as Record<string, unknown>;
-  delete s.$schema;
-  return s as Anthropic.Tool.InputSchema;
+/**
+ * JSON schema for structured outputs (strict mode). Limits like maxLength and
+ * enum values become hints in descriptions, so our zod schema stays the real
+ * validator. Strict mode can't express free-form objects (z.record): model-facing
+ * schemas must use explicit fields or JSON strings instead.
+ */
+export function outputSchema(schema: z.ZodType) {
+  return transformJSONSchema(z.toJSONSchema(schema, { reused: "ref", io: "input" }) as Record<string, unknown>);
 }
 
 /**
- * Forces the model to answer through a single tool whose input schema is our
- * zod schema, then validates the result. Anything that doesn't parse is thrown
- * away rather than "fixed up".
+ * Asks the model for JSON matching our zod schema (structured outputs), then
+ * validates it. Anything that doesn't parse is thrown away rather than "fixed up".
  */
 export async function callStructured<T extends z.ZodType>({
   system,
   user,
-  toolName,
+  toolName: _toolName,
   toolDescription,
   schema,
   maxTokens = 4000,
+  effort = "low",
   track,
 }: {
   system: string;
@@ -65,6 +70,8 @@ export async function callStructured<T extends z.ZodType>({
   toolDescription: string;
   schema: T;
   maxTokens?: number;
+  /** Reasoning effort. These are short, well-specified tasks, so "low" keeps them fast and cheap. */
+  effort?: "low" | "medium" | "high";
   /** Every call is logged for the usage dashboard and counted against the daily spend cap. */
   track: TrackInfo;
 }): Promise<{ data: z.infer<T>; usageEventId: string | null }> {
@@ -76,10 +83,9 @@ export async function callStructured<T extends z.ZodType>({
     res = await anthropicClient().messages.create({
       model,
       max_tokens: maxTokens,
-      system,
+      system: `${system}\n\nTask: ${toolDescription}`,
       messages: [{ role: "user", content: user }],
-      tools: [{ name: toolName, description: toolDescription, input_schema: toolSchema(schema) }],
-      tool_choice: { type: "tool", name: toolName },
+      output_config: { effort, format: { type: "json_schema", schema: outputSchema(schema) } },
     });
   } catch (e) {
     const err = describeAiError(e);
@@ -88,11 +94,14 @@ export async function callStructured<T extends z.ZodType>({
     throw err;
   }
   const latencyMs = Date.now() - started;
-  const call = res.content.find((c) => c.type === "tool_use");
-  const parsed = call && call.type === "tool_use" ? schema.safeParse(stripNulls(call.input)) : null;
+  const text = res.content.filter((c) => c.type === "text").map((c) => (c.type === "text" ? c.text : "")).join("");
+  let json: unknown;
   let detail: string | undefined;
-  if (!call) detail = `Model didn't use the tool (stop_reason: ${res.stop_reason})`;
+  try { json = JSON.parse(text); } catch { /* handled below */ }
+  const parsed = json === undefined ? null : schema.safeParse(stripNulls(json));
+  if (res.stop_reason === "refusal") detail = "Model declined to answer this request";
   else if (res.stop_reason === "max_tokens") detail = "Model ran out of output tokens before finishing";
+  else if (json === undefined) detail = `Model didn't return JSON (stop_reason: ${res.stop_reason})`;
   else if (parsed && !parsed.success) {
     const i = parsed.error.issues[0];
     detail = `Model output didn't match the expected format at ${i.path.join(".") || "(root)"}: ${i.message}`;

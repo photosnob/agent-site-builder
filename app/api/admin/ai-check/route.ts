@@ -1,7 +1,7 @@
 import { fail, json } from "@/lib/api";
 import { requireAdmin } from "@/lib/admin";
 import { aiEnabled, aiModel, anthropicClient, callStructured, describeAiError } from "@/lib/ai/claude";
-import { EditPlan } from "@/lib/guardrails/ops";
+import { ModelEditPlan } from "@/lib/guardrails/ops";
 import { getAiSettings } from "@/lib/ai/usage";
 
 export const maxDuration = 60;
@@ -41,7 +41,7 @@ export async function POST() {
       track: { feature: "edit", userId: admin.id, prompt: "[admin connection test]" },
       toolName: "propose_edit",
       toolDescription: "Propose edit operations for a website.",
-      schema: EditPlan,
+      schema: ModelEditPlan,
       maxTokens: 800,
       system: "You edit a website by returning edit operations. Keep block ids exactly as given. Paths for set_text are relative to props.",
       user: 'Page blocks: [{"id":"hero-test","type":"hero","props":{"headline":"Homes in Tucson","subheadline":"Helping buyers.","ctaLabel":"Talk","ctaTarget":"contact"}}]\n\nRequest: change the headline to "Tucson homes, done right".',
