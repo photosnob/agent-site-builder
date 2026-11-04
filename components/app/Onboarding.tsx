@@ -5,6 +5,7 @@ import { PALETTES } from "@/lib/blocks/theme";
 import { TEMPLATE_LIST, type TemplateId } from "@/lib/templates";
 import type { ScrapeResult } from "@/lib/import/scrape";
 import type { SiteAsset, SiteRow } from "@/lib/types";
+import { prepareImage } from "@/components/manage/resize";
 
 const SPECIALTIES = ["Luxury", "First-time buyers", "Mid-century / architectural", "Waterfront", "Condos & lofts", "Investors", "Relocation", "New construction", "Land & ranch", "55+ communities"];
 const STEPS = ["Profile", "Your market", "Import", "Design", "Build"];
@@ -221,7 +222,7 @@ function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { 
 
   async function upload(file: File, kind: "headshot" | "listing") {
     const fd = new FormData();
-    fd.set("file", file); fd.set("kind", kind);
+    fd.set("file", await prepareImage(file)); fd.set("kind", kind);
     const res = await fetch(`/api/sites/${siteId}/assets`, { method: "POST", body: fd });
     if (res.ok) { if (kind === "headshot") setUploaded(true); setMsg(`${kind === "headshot" ? "Headshot" : "Listing photo"} uploaded.`); }
     else setMsg((await res.json()).error);

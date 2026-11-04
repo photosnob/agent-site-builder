@@ -8,6 +8,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import { looksLikeMarkdown, markdownToEditorHtml } from "@/lib/blog/markdownPaste";
 import { Figure } from "./figure";
+import { prepareImage } from "@/components/manage/resize";
 import { IMAGE_SIZES, postSlug, type PostDoc } from "@/lib/blog/content";
 import type { Finding } from "@/lib/guardrails/fairHousing";
 import { CharCount, SearchPreview } from "@/components/seo/SearchPreview";
@@ -19,8 +20,9 @@ interface Post {
 
 const SIZE_LABEL = { small: "S", medium: "M", large: "L", full: "Full" } as const;
 
-async function uploadImage(siteId: string, file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("That file isn't an image.");
+async function uploadImage(siteId: string, original: File): Promise<string> {
+  if (!original.type.startsWith("image/")) throw new Error("That file isn't an image.");
+  const file = await prepareImage(original);
   if (file.size > 8_000_000) throw new Error("Images must be under 8 MB.");
   const fd = new FormData();
   fd.set("file", file);

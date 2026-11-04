@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { prepareImage } from "./resize";
 
 export async function apiJson(path: string, method: string, body?: unknown) {
   const res = await fetch(path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -8,8 +9,9 @@ export async function apiJson(path: string, method: string, body?: unknown) {
   return data;
 }
 
-export async function uploadPhoto(siteId: string, file: File, kind: "listing" | "other" = "other"): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("That file isn't an image.");
+export async function uploadPhoto(siteId: string, original: File, kind: "listing" | "other" | "headshot" = "other"): Promise<string> {
+  if (!original.type.startsWith("image/")) throw new Error("That file isn't an image.");
+  const file = await prepareImage(original);
   if (file.size > 8_000_000) throw new Error("Images must be under 8 MB.");
   const fd = new FormData();
   fd.set("file", file);

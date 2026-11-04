@@ -8,6 +8,7 @@ import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
 import { DashNav } from "@/components/app/DashNav";
 import { LogoSettings } from "@/components/seo/LogoSettings";
+import { HeadshotSettings } from "@/components/seo/HeadshotSettings";
 import { InstagramSettings } from "@/components/seo/InstagramSettings";
 import { getInstagramPosts, instagramConfigured } from "@/lib/instagram";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -44,6 +45,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-3xl font-bold">Settings</h1>
       <div className="mt-8">
+        <HeadshotSettings siteId={site.id} current={assets.find((a) => a.kind === "headshot")?.url ?? null} agentName={site.agent.name ?? ""} />
+      </div>
+      <div className="mt-6">
         <LogoSettings siteId={site.id} current={assets.find((a) => a.kind === "logo")?.url ?? null} agentName={site.agent.name ?? ""} />
       </div>
       <div className="mt-6">

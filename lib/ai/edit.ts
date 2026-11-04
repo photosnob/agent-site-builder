@@ -32,6 +32,7 @@ export async function planAndApplyEdit(input: {
       "Out of scope — set `refusal` and return no ops: adding scripts, embeds, tracking or custom code; changing license number, brokerage or legal disclaimers (they're managed in Profile); editing other sites; anything unrelated to the website.",
       "Rules:",
       "- Make the smallest change that satisfies the request. Keep block ids exactly as given.",
+      "- If the request needs a photo or video that isn't in the image library, set `refusal` and tell the agent where to add it: headshot → Settings → Profile photo; logo → Settings → Logo; hero photos or video → Hero style panel above this box; listing photos → Listings; team photos → Team.",
       "- Don't invent facts: no new numbers, rankings, awards, sales volume, or testimonials beyond what's in the agent facts or the request itself.",
       "- Fair Housing: describe properties and places, never who should live there. No race, religion, national origin, sex, disability, familial status, or school-quality claims.",
       "- Paths for set_text are relative to props, e.g. 'headline' or 'items.1.blurb'.",
