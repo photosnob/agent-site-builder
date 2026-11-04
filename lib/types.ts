@@ -20,6 +20,13 @@ export const AgentProfile = z.object({
   tone: z.enum(["warm", "polished", "bold"]).default("warm"),
   bio: z.string().trim().max(2000).optional().default(""),
   existingSiteUrl: z.string().trim().url().max(300).optional().or(z.literal("")),
+  /** One or two sentences for the blog's "About the author" box. */
+  shortBio: z.string().trim().max(400).optional(),
+  socials: z.object({
+    instagram: z.string().trim().url().max(200).optional(),
+    facebook: z.string().trim().url().max(200).optional(),
+    linkedin: z.string().trim().url().max(200).optional(),
+  }).optional(),
 });
 export type AgentProfile = z.infer<typeof AgentProfile>;
 

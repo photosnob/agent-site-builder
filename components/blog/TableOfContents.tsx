@@ -42,14 +42,14 @@ export function TableOfContents({ toc, variant }: { toc: TocEntry[]; variant: "s
   if (variant === "inline")
     return (
       <details className="my-8 p-4 lg:hidden" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }}>
-        <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide">On this page</summary>
+        <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide">Topics in this article</summary>
         <div className="mt-3">{list}</div>
       </details>
     );
 
   return (
     <nav aria-label="Table of contents" className="sticky top-8 hidden max-h-[calc(100vh-4rem)] overflow-y-auto lg:block">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: "var(--muted)" }}>On this page</p>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: "var(--muted)" }}>Topics in this article</p>
       {list}
     </nav>
   );

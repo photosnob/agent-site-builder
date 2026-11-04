@@ -7,6 +7,8 @@ import { canonicalOrigin } from "@/lib/siteUrls";
 import { defaultDescription, defaultTitle, llmsTxt } from "@/lib/seo/files";
 import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
+import { ProfileSettings } from "@/components/seo/ProfileSettings";
+import { briefBio } from "@/lib/social";
 import type { SiteRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,13 @@ export default async function SettingsPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link href="/dashboard" className="text-sm text-stone-500 hover:text-stone-900">← Site editor</Link>
       <h1 className="mt-2 text-3xl font-bold">Settings</h1>
+      <div className="mt-8">
+        <ProfileSettings
+          siteId={site.id}
+          initial={{ shortBio: site.agent.shortBio, socials: site.agent.socials }}
+          bioPlaceholder={briefBio((() => { const a = content?.blocks.find((b) => b.type === "about"); return a?.type === "about" ? a.props.body : site.agent.bio; })()) || "e.g. Jane helps buyers and sellers across Willow Glen with a calm, clear process."}
+        />
+      </div>
       <SeoSettings
         siteId={site.id}
         live={site.status === "live"}

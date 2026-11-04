@@ -4,7 +4,9 @@ import { SiteRenderer } from "@/components/site/SiteRenderer";
 import { getAssets, getPublishedSiteBySlug, headshotOf } from "@/lib/sites";
 import { getPublishedPosts } from "@/lib/blog/server";
 import { basePath, canonicalOrigin } from "@/lib/siteUrls";
-import { agentJsonLd, defaultDescription, defaultTitle } from "@/lib/seo/files";
+import { defaultDescription, defaultTitle } from "@/lib/seo/files";
+import { homeGraph } from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { SiteSeo } from "@/lib/seo/schema";
 
 export const seoOf = (raw: unknown) => {
@@ -42,13 +44,17 @@ export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean
   if (!site?.published_content || !site.published_theme) notFound();
   const [assets, posts] = await Promise.all([getAssets(site.id), getPublishedPosts(site.id, 1)]);
   const seo = seoOf(site.seo);
-  const jsonLd = agentJsonLd(
-    { slug, origin: canonicalOrigin(slug), agent: site.agent, content: site.published_content, seo, publishedAt: site.published_at },
-    headshotOf(assets),
-  );
+  const jsonLd = homeGraph({
+    origin: canonicalOrigin(slug),
+    agent: site.agent,
+    content: site.published_content,
+    seo,
+    headshot: headshotOf(assets),
+    logo: assets.find((x) => x.kind === "logo")?.url,
+  });
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd} />
       <SiteRenderer
         content={site.published_content}
         theme={site.published_theme}

@@ -8,6 +8,10 @@ import { getPublishedPost, getPublishedPosts } from "@/lib/blog/server";
 import { getPublishedSiteBySlug } from "@/lib/sites";
 import { basePath, canonicalOrigin } from "@/lib/siteUrls";
 import { seoOf } from "./HomePage";
+import { getAssets, headshotOf } from "@/lib/sites";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { AuthorBox } from "@/components/blog/AuthorBox";
+import { blogIndexGraph, blogPostGraph, type LdSite } from "@/lib/seo/jsonld";
 
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : "";
@@ -16,6 +20,20 @@ async function loadSite(slug: string) {
   const site = await getPublishedSiteBySlug(slug);
   if (!site?.published_theme) notFound();
   return site as typeof site & { published_theme: NonNullable<typeof site.published_theme> };
+}
+
+async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string): Promise<LdSite & { aboutBody?: string }> {
+  const assets = await getAssets(site.id);
+  const about = site.published_content?.blocks.find((b) => b.type === "about");
+  return {
+    origin: canonicalOrigin(slug),
+    agent: site.agent,
+    content: site.published_content,
+    seo: seoOf(site.seo),
+    headshot: headshotOf(assets),
+    logo: assets.find((a) => a.kind === "logo")?.url,
+    aboutBody: about?.type === "about" ? about.props.body : undefined,
+  };
 }
 
 const hasSection = (site: Awaited<ReturnType<typeof loadSite>>, type: string) =>
@@ -37,11 +55,12 @@ export async function blogIndexMetadata(slug: string, hosted: boolean): Promise<
 
 export async function BlogIndexPage({ slug, hosted }: { slug: string; hosted: boolean }) {
   const site = await loadSite(slug);
-  const posts = await getPublishedPosts(site.id);
+  const [posts, ld] = await Promise.all([getPublishedPosts(site.id), ldSite(site, slug)]);
   const base = basePath(slug, hosted);
   return (
     <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
+      <JsonLd data={blogIndexGraph(ld, posts)} />
       <div className="site-container py-12 md:py-16">
         <h1 className="site-heading text-4xl sm:text-5xl">Blog</h1>
         {posts.length === 0 && <p className="mt-6" style={{ color: "var(--muted)" }}>No posts yet.</p>}
@@ -96,22 +115,23 @@ export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; p
   const toc = post.show_toc ? buildToc(post.content) : [];
   const showToc = toc.length >= 2;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline: post.title,
+  const ld = await ldSite(site, slug);
+  const graphData = blogPostGraph(ld, {
+    slug: post.slug,
+    title: post.title,
+    seoTitle: post.seo_title,
     description: post.meta_description || post.excerpt || undefined,
-    image: post.cover_image || undefined,
-    datePublished: post.published_at,
-    dateModified: post.updated_at,
-    author: { "@type": "Person", name: site.agent.name },
-    mainEntityOfPage: `${canonicalOrigin(slug, hosted)}/blog/${post.slug}`,
-  };
+    image: post.cover_image,
+    published_at: post.published_at,
+    updated_at: post.updated_at,
+    wordCount: plainText(post.content).split(/\s+/).filter(Boolean).length,
+    sections: toc.filter((t) => t.level === 2).map((t) => t.text),
+  });
 
   return (
     <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={graphData} />
       <article className="site-container py-10 md:py-14">
         <div className={showToc ? "grid gap-12 lg:grid-cols-[minmax(0,1fr)_240px]" : ""}>
           <div className="mx-auto w-full max-w-[720px]">
@@ -128,7 +148,8 @@ export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; p
             <div className="mt-8">
               <PostBody doc={post.content} />
             </div>
-            <div className="mt-14 p-8 text-center" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }}>
+            <AuthorBox agent={site.agent} headshot={ld.headshot} fallbackBio={ld.aboutBody || site.agent.bio} aboutHref={`${base || "/"}#about`} />
+            <div className="mt-10 p-8 text-center" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }}>
               <p className="site-heading text-2xl">Questions about buying or selling?</p>
               <a href={`${base || "/"}#contact`} className="site-btn mt-5 inline-block">Get in touch</a>
             </div>

@@ -1,5 +1,6 @@
 import { FONT_PAIRS, themeVars, type Theme } from "@/lib/blocks/theme";
 import type { AgentProfile } from "@/lib/types";
+import { SocialLinks } from "./SocialLinks";
 
 type Agent = Partial<AgentProfile>;
 
@@ -42,7 +43,10 @@ function ComplianceFooter({ agent }: { agent: Agent }) {
   return (
     <footer className="mt-10 border-t py-10 text-xs" style={{ borderColor: "var(--surface)", color: "var(--muted)" }}>
       <div className="site-container space-y-2">
-        <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{agent.name}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{agent.name}</p>
+          <div style={{ color: "var(--text)" }}><SocialLinks agent={agent} /></div>
+        </div>
         <p>
           {agent.brokerage}
           {agent.licenseNumber && <> · {agent.licenseState} License #{agent.licenseNumber}</>}

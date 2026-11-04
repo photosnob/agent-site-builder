@@ -1,6 +1,9 @@
 import { fail, json } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { after } from "next/server";
+import { leadEmail, sendEmail } from "@/lib/email";
+import { appUrl, publicSiteUrl } from "@/lib/siteUrls";
 
 const Lead = z.object({
   siteId: z.string().uuid(),
@@ -28,12 +31,29 @@ export async function POST(req: Request) {
   if (body.data.website) return json({ ok: true }); // bot: pretend success
 
   const admin = createAdminClient();
-  const { data: site } = await admin.from("sites").select("id").eq("id", body.data.siteId).eq("status", "live").maybeSingle();
+  const { data: site } = await admin.from("sites").select("id, slug, owner_id, agent").eq("id", body.data.siteId).eq("status", "live").maybeSingle();
   if (!site) return fail("Unknown site", 404);
 
   const { siteId, pagePath, website: _hp, ...rest } = body.data;
   const { error } = await admin.from("leads").insert({ site_id: siteId, page_path: pagePath, ...rest });
   if (error) return fail("Could not save", 500);
-  // Next: notify the agent (email/SMS) and push to their CRM.
+
+  // Email the agent after responding, so the visitor isn't kept waiting.
+  after(async () => {
+    try {
+      const agent = (site.agent ?? {}) as { name?: string; email?: string };
+      let to = agent.email;
+      if (!to) to = (await admin.auth.admin.getUserById(site.owner_id)).data.user?.email ?? undefined;
+      if (!to) return;
+      const live = publicSiteUrl(site.slug);
+      const msg = leadEmail(
+        { name: rest.name, email: rest.email, phone: rest.phone, message: rest.message, intent: rest.intent, pagePath },
+        { agentName: agent.name, siteUrl: live.startsWith("/") ? `${appUrl()}${live}` : live, dashboardUrl: `${appUrl()}/dashboard` },
+      );
+      await sendEmail({ to, replyTo: rest.email, ...msg });
+    } catch (e) {
+      console.error("[email] lead notification failed", e);
+    }
+  });
   return json({ ok: true });
 }
