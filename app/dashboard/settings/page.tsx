@@ -45,7 +45,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-3xl font-bold">Settings</h1>
       <div className="mt-8">
-        <HeadshotSettings siteId={site.id} current={assets.find((a) => a.kind === "headshot")?.url ?? null} agentName={site.agent.name ?? ""} />
+        <HeadshotSettings siteId={site.id} current={(() => { const h = assets.find((a) => a.kind === "headshot"); return h ? { url: h.url, originalUrl: h.meta?.originalUrl, crop: h.meta?.crop } : null; })()} agentName={site.agent.name ?? ""} />
       </div>
       <div className="mt-6">
         <LogoSettings siteId={site.id} current={assets.find((a) => a.kind === "logo")?.url ?? null} agentName={site.agent.name ?? ""} />

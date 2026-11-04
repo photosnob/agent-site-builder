@@ -6,6 +6,8 @@ import { z } from "zod";
 
 export const maxDuration = 60;
 
+const Crop = z.object({ cx: z.number().min(0).max(1), cy: z.number().min(0).max(1), zoom: z.number().min(1).max(4) }).nullable();
+
 const Confirm = z.object({
   headshotUrl: z.string().url().optional(),
   logoUrl: z.string().url().optional(),
@@ -40,12 +42,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const stored = await storeImage(siteId, Buffer.from(await file.arrayBuffer()));
       // One headshot and one logo per site: replace the previous one.
       let previous: string[] = [];
+      let prevOriginal: string | undefined;
       if (kind.data === "headshot" || kind.data === "logo") {
-        const { data: old } = await admin.from("site_assets").select("url").eq("site_id", siteId).eq("kind", kind.data);
+        const { data: old } = await admin.from("site_assets").select("url, meta").eq("site_id", siteId).eq("kind", kind.data);
         previous = (old ?? []).map((r) => r.url as string);
-        await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", kind.data);
+        prevOriginal = (old ?? []).map((r) => (r.meta as { originalUrl?: string } | null)?.originalUrl).find(Boolean);
       }
-      const { data } = await admin.from("site_assets").insert({ site_id: siteId, kind: kind.data, url: stored.url, storage_path: stored.path, meta: {} }).select("id, kind, url, meta").single();
+      // Headshots keep the uncropped photo and crop position so they can be re-adjusted later.
+      const meta: Record<string, unknown> = {};
+      if (kind.data === "headshot") {
+        const original = form.get("original");
+        const keep = form.get("originalUrl");
+        let rawCrop: unknown = null;
+        try { rawCrop = JSON.parse(String(form.get("crop") ?? "null")); } catch { /* ignore a bad crop */ }
+        const crop = Crop.safeParse(rawCrop);
+        if (original instanceof File && original.size > 0) {
+          if (original.size > 8_000_000) return fail("Images must be under 8 MB");
+          meta.originalUrl = (await storeImage(siteId, Buffer.from(await original.arrayBuffer()))).url;
+        } else if (typeof keep === "string" && keep && keep === prevOriginal) {
+          meta.originalUrl = keep; // re-cropping the same photo; only our own stored original is accepted
+        }
+        if (crop.success && meta.originalUrl) meta.crop = crop.data;
+      }
+      if (kind.data === "headshot" || kind.data === "logo") await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", kind.data);
+      const { data } = await admin.from("site_assets").insert({ site_id: siteId, kind: kind.data, url: stored.url, storage_path: stored.path, meta }).select("id, kind, url, meta").single();
       if (kind.data === "headshot" && previous.length) await swapImageUrl(admin, siteId, previous, stored.url);
       // Header logo and author photo appear on every page, so refresh the whole site.
       if (kind.data === "headshot" || kind.data === "logo") for (const m of ["s", "h"]) revalidatePath(`/${m}/${ctx.site.slug}`, "layout");

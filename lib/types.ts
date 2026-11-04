@@ -34,7 +34,7 @@ export interface SiteAsset {
   id: string;
   kind: "headshot" | "logo" | "listing" | "other";
   url: string;
-  meta: { alt?: string; address?: string; price?: string; status?: string };
+  meta: { alt?: string; address?: string; price?: string; status?: string; originalUrl?: string; crop?: { cx: number; cy: number; zoom: number } };
 }
 
 export interface ImportData {

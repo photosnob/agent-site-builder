@@ -84,7 +84,7 @@ export function fromModelPlan(m: ModelEditPlan): { plan: EditPlan; errors: strin
 }
 
 /** Fields an edit may never write with set_text. Images go through set_image only. */
-const NON_TEXT_FIELDS = new Set(["image", "imageSize", "videoUrl", "slides", "secondaryCtaTarget", "mode", "count", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
+const NON_TEXT_FIELDS = new Set(["image", "imageSize", "videoUrl", "videoSpeed", "slides", "secondaryCtaTarget", "mode", "count", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
 
 export interface GuardContext {
   content: AnyContent;

@@ -34,6 +34,8 @@ export const HeroBlock = z.object({
     secondaryCtaTarget: z.enum(CTA_TARGETS).optional(),
     /** Video background (heroStyle "video"): an uploaded or stock MP4/WebM in our storage. */
     videoUrl: z.string().url().max(800).optional(),
+    /** Video playback speed, 0.25–2 (1 = normal). */
+    videoSpeed: z.number().min(0.25).max(2).optional(),
     /** Slideshow background (heroStyle "slideshow"): up to 8 photos from the library. */
     slides: z.array(imageRef).max(8).optional(),
   }),

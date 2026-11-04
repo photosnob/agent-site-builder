@@ -1,5 +1,6 @@
 import type { AnyContent, Block } from "@/lib/blocks/schema";
 import { EMPTY_DATA, listingsForBlock, type SiteData } from "@/lib/siteData";
+import { HeroVideo } from "./HeroVideo";
 import { Faq, Instagram, PageHeader, RecentPosts, Reviews, RichText, Steps, TeamGrid } from "./InnerBlocks";
 import type { Theme } from "@/lib/blocks/theme";
 import type { AgentProfile } from "@/lib/types";
@@ -80,9 +81,7 @@ function ImmersiveHero({ b, theme, agent, poster }: { b: Extract<Block, { type: 
     <div className="relative flex min-h-[100svh] flex-col overflow-hidden bg-black text-white">
       {theme.heroStyle === "video" && p.videoUrl ? (
         <>
-          <video autoPlay muted loop playsInline preload="metadata" poster={poster} aria-hidden className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden">
-            <source src={p.videoUrl} type={p.videoUrl.endsWith(".webm") ? "video/webm" : "video/mp4"} />
-          </video>
+          <HeroVideo src={p.videoUrl} poster={poster} speed={p.videoSpeed ?? 1} className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {poster && <img src={poster} alt="" aria-hidden className="absolute inset-0 hidden h-full w-full object-cover motion-reduce:block" />}
         </>

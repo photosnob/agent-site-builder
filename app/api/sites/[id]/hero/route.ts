@@ -10,6 +10,7 @@ const Body = z.object({
   heroStyle: z.enum(["full-bleed", "split", "centered", "video", "slideshow"]),
   image: z.string().url().max(800).nullable().optional(),
   videoUrl: z.string().url().max(800).nullable().optional(),
+  videoSpeed: z.number().min(0.25).max(2).optional(),
   slides: z.array(z.string().url().max(800)).max(8).optional(),
   secondaryCtaLabel: z.string().trim().max(30).nullable().optional(),
   secondaryCtaTarget: z.enum(["contact", "valuation", "listings"]).nullable().optional(),
@@ -37,6 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const props = { ...blk.props };
     if (b.data.image !== undefined) { if (b.data.image) props.image = b.data.image; else delete props.image; }
     if (b.data.videoUrl !== undefined) { if (b.data.videoUrl) props.videoUrl = b.data.videoUrl; else delete props.videoUrl; }
+    if (b.data.videoSpeed !== undefined) { if (b.data.videoSpeed === 1) delete props.videoSpeed; else props.videoSpeed = b.data.videoSpeed; }
     if (b.data.slides !== undefined) props.slides = b.data.slides;
     if (b.data.secondaryCtaLabel !== undefined) {
       if (b.data.secondaryCtaLabel && b.data.secondaryCtaTarget) { props.secondaryCtaLabel = b.data.secondaryCtaLabel; props.secondaryCtaTarget = b.data.secondaryCtaTarget; }

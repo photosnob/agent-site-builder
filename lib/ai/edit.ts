@@ -43,7 +43,7 @@ export async function planAndApplyEdit(input: {
     ].join("\n"),
     user: [
       `Agent facts (trusted):\n${factsOf(input.agent)}`,
-      `Image library:\n${JSON.stringify(input.assets.map((a) => ({ assetId: a.id, kind: a.kind, ...a.meta })))}`,
+      `Image library:\n${JSON.stringify(input.assets.map((a) => ({ assetId: a.id, kind: a.kind, alt: a.meta?.alt, address: a.meta?.address, price: a.meta?.price, status: a.meta?.status })))}`,
       `Current theme: ${JSON.stringify(input.theme)}`,
       `Page being edited: ${input.page?.kind === "page" ? `the "${input.page.title}" page (starts with a page-header; heroes are home-page only)` : "the home page (starts with the hero)"}`,
       untrusted("current_page_blocks", describeForModel(input.content)),

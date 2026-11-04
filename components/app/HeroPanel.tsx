@@ -5,7 +5,11 @@ import { uploadPhoto } from "@/components/manage/shared";
 
 type Style = "full-bleed" | "split" | "centered" | "video" | "slideshow";
 type Asset = { id: string; url: string; kind: string; meta: { type?: string } };
-export type HeroState = { style: Style; image?: string; videoUrl?: string; slides: string[]; secondaryCtaLabel?: string; secondaryCtaTarget?: "contact" | "valuation" | "listings" };
+import { HeroVideo } from "@/components/site/HeroVideo";
+
+const SPEEDS: [number, string][] = [[0.25, "0.25×"], [0.5, "0.5×"], [0.75, "0.75×"], [1, "Normal"], [1.25, "1.25×"], [1.5, "1.5×"]];
+
+export type HeroState = { style: Style; image?: string; videoUrl?: string; videoSpeed?: number; slides: string[]; secondaryCtaLabel?: string; secondaryCtaTarget?: "contact" | "valuation" | "listings" };
 
 const STYLES: { id: Style; label: string; hint: string }[] = [
   { id: "full-bleed", label: "Photo", hint: "Full-width photo" },
@@ -61,7 +65,7 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
     setBusy("save"); setMsg(null);
     const res = await fetch(`/api/sites/${siteId}/hero`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ heroStyle: h.style, image: h.image ?? null, videoUrl: h.videoUrl ?? null, slides: h.slides, secondaryCtaLabel: h.secondaryCtaLabel || null, secondaryCtaTarget: h.secondaryCtaLabel ? h.secondaryCtaTarget ?? "listings" : null }),
+      body: JSON.stringify({ heroStyle: h.style, image: h.image ?? null, videoUrl: h.videoUrl ?? null, videoSpeed: h.videoSpeed ?? 1, slides: h.slides, secondaryCtaLabel: h.secondaryCtaLabel || null, secondaryCtaTarget: h.secondaryCtaLabel ? h.secondaryCtaTarget ?? "listings" : null }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(null);
@@ -95,7 +99,18 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
           {h.style === "video" && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Video</p>
-              {h.videoUrl && <video src={h.videoUrl} muted autoPlay loop playsInline className="aspect-video w-full rounded-md bg-black object-cover" />}
+              {h.videoUrl && <HeroVideo src={h.videoUrl} speed={h.videoSpeed ?? 1} className="aspect-video w-full rounded-md bg-black object-cover" />}
+              {h.videoUrl && (
+                <div>
+                  <p className="text-xs text-stone-500">Speed</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {SPEEDS.map(([v, label]) => (
+                      <button key={v} type="button" onClick={() => setH({ ...h, videoSpeed: v })} className={`rounded-md border px-2 py-1 text-xs ${(h.videoSpeed ?? 1) === v ? "border-stone-900 bg-stone-100" : "border-stone-200"}`}>{label}</button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">Slower speeds feel calmer and more cinematic.</p>
+                </div>
+              )}
               <label className="btn-ghost w-full cursor-pointer">{busy === "video" ? "Uploading… (keep this open)" : "Upload a video (MP4, up to 50 MB)"}
                 <input type="file" accept="video/mp4,video/webm" className="hidden" disabled={!!busy} onChange={(e) => { uploadVideo(e.target.files?.[0]); e.target.value = ""; }} />
               </label>
