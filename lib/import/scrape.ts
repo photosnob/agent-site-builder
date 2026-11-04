@@ -65,14 +65,14 @@ export function parsePage(html: string, base: string, agentName: string) {
       const data = JSON.parse($(el).text());
       for (const node of [data, ...(data["@graph"] ?? [])].flat()) {
         const t = String(node?.["@type"] ?? "");
-        if (/RealEstateAgent|Person/i.test(t) && (!agentName || hasName(String(node?.name ?? "")))) {
+        if (/RealEstateAgent|Person/i.test(t) && agentName && hasName(String(node?.name ?? ""))) {
           ldImage ??= typeof node.image === "string" ? node.image : node.image?.url;
         }
         if (/RealEstateAgent|LocalBusiness|Organization/i.test(t)) ldLogo ??= typeof node.logo === "string" ? node.logo : node.logo?.url;
       }
     } catch { /* ignore bad JSON-LD */ }
   });
-  if (ldImage) { const u = absolute(ldImage, base); if (u) headshots.push({ url: u, alt: "From structured data", score: 6 }); }
+  if (ldImage && !/logo/i.test(ldImage)) { const u = absolute(ldImage, base); if (u) headshots.push({ url: u, alt: "From structured data", score: 6 }); }
 
   // Headings that name the agent: on profile pages the photo sits right next to them.
   const nameHeadings = $("h1, h2, h3").filter((_, h) => hasName($(h).text())).toArray();
@@ -104,6 +104,7 @@ export function parsePage(html: string, base: string, agentName: string) {
     if (nameHeadings.length && nearAgentName(el as never)) hs += 3;
     if (w && h && h >= w * 0.9) hs += 1; // portrait-ish
     if (stock) hs -= 4;
+    if (/logo/i.test(`${url} ${alt}`)) hs -= 10; // logos are never headshots
     if (hs >= 3) headshots.push({ url, alt, score: hs });
 
     let ls = 0;

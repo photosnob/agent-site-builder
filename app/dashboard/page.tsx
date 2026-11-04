@@ -6,6 +6,7 @@ import type { SiteRow } from "@/lib/types";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import { editsLeftToday } from "@/lib/ai/usage";
 import { listPages, seedTestimonialsFromImport } from "@/lib/pages/server";
+import { getAssets } from "@/lib/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ export default async function Dashboard() {
   ]);
 
   const liveUrl = publicSiteUrl(site.slug);
-  const [pages] = await Promise.all([listPages(site.id), seedTestimonialsFromImport(site).catch(() => 0)]);
+  const [pages, assets] = await Promise.all([listPages(site.id), getAssets(site.id), seedTestimonialsFromImport(site).catch(() => 0)]);
+  const heroBlock = site.content.blocks.find((b) => b.type === "hero");
+  const hp = heroBlock?.type === "hero" ? heroBlock.props : undefined;
   const quota = await editsLeftToday(site.id, (site as SiteRow & { ai_daily_edit_limit?: number | null }).ai_daily_edit_limit ?? null);
 
   return (
@@ -36,6 +39,8 @@ export default async function Dashboard() {
       editsLeft={quota.left}
       editsLimit={quota.limit}
       pages={pages.map((p) => ({ id: p.id, slug: p.slug, title: p.title, enabled: p.enabled }))}
+      hero={{ style: site.theme?.heroStyle ?? "full-bleed", image: hp?.image, videoUrl: hp?.videoUrl, slides: hp?.slides ?? [], secondaryCtaLabel: hp?.secondaryCtaLabel, secondaryCtaTarget: hp?.secondaryCtaTarget }}
+      assets={assets.map((a) => ({ id: a.id, url: a.url, kind: a.kind, meta: a.meta as { type?: string } }))}
       revisions={revisions ?? []}
       leads={leads ?? []}
     />

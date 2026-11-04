@@ -1,9 +1,10 @@
 import type { AnyContent, Block } from "@/lib/blocks/schema";
 import { EMPTY_DATA, listingsForBlock, type SiteData } from "@/lib/siteData";
-import { Faq, PageHeader, RecentPosts, Reviews, RichText, Steps, TeamGrid } from "./InnerBlocks";
+import { Faq, Instagram, PageHeader, RecentPosts, Reviews, RichText, Steps, TeamGrid } from "./InnerBlocks";
 import type { Theme } from "@/lib/blocks/theme";
 import type { AgentProfile } from "@/lib/types";
 import { LeadForm } from "./LeadForm";
+import { HeroSlideshow } from "./HeroSlideshow";
 import { SiteShell } from "./SiteShell";
 
 type Agent = Partial<AgentProfile>;
@@ -54,7 +55,11 @@ export function SiteRenderer({
       blogHref={blogHref}
       nav={data.nav}
       logo={logo}
-      overlayHeader={blocks[0]?.type === "hero" && (theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && Boolean((blocks[0].type === "hero" && blocks[0].props.image) || headshot)}
+      overlayHeader={blocks[0]?.type === "hero" && (
+        (theme.heroStyle === "video" && Boolean(blocks[0].props.videoUrl)) ||
+        (theme.heroStyle === "slideshow" && (blocks[0].props.slides?.length ?? 0) > 0) ||
+        ((theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && Boolean(blocks[0].props.image || headshot))
+      )}
       sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
     >
       {blocks.map((b) => (
@@ -63,6 +68,55 @@ export function SiteRenderer({
         </section>
       ))}
     </SiteShell>
+  );
+}
+
+/** Full-screen video or slideshow hero with centered type, in the style of luxury agent sites. */
+function ImmersiveHero({ b, theme, agent, poster }: { b: Extract<Block, { type: "hero" }>; theme: Theme; agent: Agent; poster?: string }) {
+  const p = b.props;
+  const stats = (agent.claims ?? []).filter((c) => c.value && c.label).slice(0, 4);
+  const license = [agent.brokerage, agent.licenseNumber && `${agent.licenseState ?? ""} License #${agent.licenseNumber}`.trim()].filter(Boolean).join("  ·  ");
+  return (
+    <div className="relative flex min-h-[100svh] flex-col overflow-hidden bg-black text-white">
+      {theme.heroStyle === "video" && p.videoUrl ? (
+        <>
+          <video autoPlay muted loop playsInline preload="metadata" poster={poster} aria-hidden className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden">
+            <source src={p.videoUrl} type={p.videoUrl.endsWith(".webm") ? "video/webm" : "video/mp4"} />
+          </video>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {poster && <img src={poster} alt="" aria-hidden className="absolute inset-0 hidden h-full w-full object-cover motion-reduce:block" />}
+        </>
+      ) : (
+        <HeroSlideshow images={p.slides ?? []} />
+      )}
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-linear-to-b from-black/50 via-transparent to-black/60" />
+      <div className="site-container relative flex flex-1 flex-col items-center justify-center pb-24 pt-32 text-center">
+        {p.eyebrow && <p className="mb-5 text-[11px] uppercase tracking-[0.35em] opacity-90 sm:text-xs">{p.eyebrow}</p>}
+        <h1 className="site-heading max-w-5xl text-4xl uppercase leading-[1.1] tracking-[0.06em] sm:text-6xl lg:text-7xl" style={{ fontWeight: 500 }}>{p.headline}</h1>
+        {p.subheadline && <p className="mt-6 max-w-2xl text-base opacity-90 sm:text-lg">{p.subheadline}</p>}
+        {license && <p className="mt-4 text-[11px] uppercase tracking-[0.25em] opacity-75">{license}</p>}
+        <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+          <a href={anchorFor(p.ctaTarget)} className="bg-white px-8 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-900 transition hover:bg-white/85" style={{ borderRadius: "var(--radius)" }}>{p.ctaLabel}</a>
+          {p.secondaryCtaLabel && p.secondaryCtaTarget && (
+            <a href={anchorFor(p.secondaryCtaTarget)} className="border border-white/80 px-8 py-4 text-xs font-semibold uppercase tracking-[0.2em] transition hover:bg-white/10" style={{ borderRadius: "var(--radius)" }}>{p.secondaryCtaLabel}</a>
+          )}
+        </div>
+      </div>
+      {stats.length >= 2 && (
+        <div className="relative border-t border-white/25 bg-black/25 backdrop-blur-sm">
+          <dl className={`site-container grid grid-cols-2 gap-y-4 py-5 text-center ${({ 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4" } as Record<number, string>)[stats.length]}`}>
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="sr-only">{s.label}</dt>
+                <dd className="site-heading text-2xl sm:text-3xl">{s.value}</dd>
+                <dd className="mt-1 text-[10px] uppercase tracking-[0.2em] opacity-80">{s.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -77,8 +131,12 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot, data
     case "team-grid": return <TeamGrid b={b} data={data} agent={agent} headshot={headshot} />;
     case "reviews": return <Reviews b={b} data={data} />;
     case "recent-posts": return <RecentPosts b={b} data={data} base={base} />;
+    case "instagram": return <Instagram b={b} data={data} />;
     case "hero": {
       const img = b.props.image ?? headshot;
+      if ((theme.heroStyle === "video" && b.props.videoUrl) || (theme.heroStyle === "slideshow" && (b.props.slides?.length ?? 0) > 0)) {
+        return <ImmersiveHero b={b} theme={theme} agent={agent} poster={b.props.image ?? b.props.slides?.[0] ?? headshot} />;
+      }
       const Cta = (
         <a href={anchorFor(b.props.ctaTarget)} className="site-btn mt-8 inline-block">{b.props.ctaLabel}</a>
       );

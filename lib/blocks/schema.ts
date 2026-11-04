@@ -30,6 +30,12 @@ export const HeroBlock = z.object({
     image: imageRef.optional(),
     ctaLabel: plain(30),
     ctaTarget: z.enum(CTA_TARGETS),
+    secondaryCtaLabel: plain(30).optional(),
+    secondaryCtaTarget: z.enum(CTA_TARGETS).optional(),
+    /** Video background (heroStyle "video"): an uploaded or stock MP4/WebM in our storage. */
+    videoUrl: z.string().url().max(800).optional(),
+    /** Slideshow background (heroStyle "slideshow"): up to 8 photos from the library. */
+    slides: z.array(imageRef).max(8).optional(),
   }),
 });
 
@@ -158,6 +164,13 @@ export const RecentPostsBlock = z.object({
   props: z.object({ headline: plain(90), count: z.number().int().min(2).max(6) }),
 });
 
+/** Data-driven: the agent's latest Instagram posts (needs a connected account). */
+export const InstagramBlock = z.object({
+  type: z.literal("instagram"),
+  id: blockId,
+  props: z.object({ headline: plain(90), count: z.number().int().min(3).max(6) }),
+});
+
 export const Block = z.discriminatedUnion("type", [
   HeroBlock,
   AboutBlock,
@@ -174,6 +187,7 @@ export const Block = z.discriminatedUnion("type", [
   TeamGridBlock,
   ReviewsBlock,
   RecentPostsBlock,
+  InstagramBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 export type BlockType = Block["type"];
@@ -194,6 +208,7 @@ export const BLOCK_TYPES = [
   "team-grid",
   "reviews",
   "recent-posts",
+  "instagram",
 ] as const satisfies readonly BlockType[];
 
 /** Blocks a site must always have, and where. */
@@ -238,6 +253,7 @@ export function imagesIn(content: { blocks: Block[] }): string[] {
   const out: string[] = [];
   for (const b of content.blocks) {
     if ((b.type === "hero" || b.type === "about" || b.type === "page-header") && b.props.image) out.push(b.props.image);
+    if (b.type === "hero") { b.props.slides?.forEach((u) => out.push(u)); if (b.props.videoUrl) out.push(b.props.videoUrl); }
     if (b.type === "featured-listings") b.props.items.forEach((i) => out.push(i.image));
   }
   return out;

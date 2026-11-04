@@ -29,6 +29,12 @@ Besides the home page, each site gets **Buy**, **Sell** (a seller's guide), **Me
 - **Team** (`/dashboard/team`): team members after the agent.
 - **Logo** (Settings): solid backgrounds are removed in the browser (`lib/logo.ts`), previewed, then uploaded as a trimmed PNG.
 
+### Hero styles and Instagram
+
+- **Hero styles** (editor → Hero style): Photo, Split, Centered, **Video** (full-screen looping MP4/WebM up to 50 MB, uploaded straight to storage with a signed URL, with a still image for reduced-motion visitors) and **Slideshow** (2–8 crossfading photos). Video and slideshow use a centered, uppercase luxury layout with an overlaid header, two buttons, the license line and a stats bar from the agent's claims.
+- **Stock video library:** upload licensed clips to `site-assets/stock/` in Supabase Storage (optional same-name `.jpg` poster) and they appear for every agent.
+- **Instagram** (Settings): Business Login for Instagram (`instagram_business_basic`). Tokens are encrypted (AES-GCM, `TOKEN_ENCRYPTION_KEY`) and refreshed before they expire. Posts are cached for an hour, and the home section shows the 3 latest. Serving agents' accounts beyond your own requires Meta's Advanced Access (App Review).
+
 ### Email
 
 New leads are emailed to the agent through Resend (`lib/email.ts`); replies go to the lead. Set `RESEND_API_KEY` and `EMAIL_FROM` (on a domain verified in Resend).
@@ -65,7 +71,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash

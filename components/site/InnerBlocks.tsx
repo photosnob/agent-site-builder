@@ -1,6 +1,7 @@
 import type { Block } from "@/lib/blocks/schema";
 import type { AgentProfile } from "@/lib/types";
 import { reviewsFor, type SiteData } from "@/lib/siteData";
+import { igImage } from "@/lib/instagram";
 
 type Agent = Partial<AgentProfile>;
 type Of<T extends Block["type"]> = Extract<Block, { type: T }>;
@@ -166,6 +167,29 @@ export function RecentPosts({ b, data, base }: { b: Of<"recent-posts">; data: Si
             ) : <div className="aspect-[3/2] w-full" style={{ background: "var(--surface)", borderRadius: "var(--radius)" }} />}
             <p className="mt-3 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>{fmtDate(p.published_at)}</p>
             <h3 className="site-heading mt-1 text-lg leading-snug group-hover:underline">{p.title}</h3>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function Instagram({ b, data }: { b: Of<"instagram">; data: SiteData }) {
+  const posts = (data.instagram?.posts ?? []).slice(0, b.props.count);
+  if (!posts.length) return null;
+  const handle = data.instagram?.username;
+  return (
+    <div className="site-container py-12 md:py-16">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="site-heading text-3xl sm:text-4xl">{b.props.headline}</h2>
+        {handle && <a href={`https://instagram.com/${handle}`} target="_blank" rel="noopener noreferrer me" className="text-sm font-semibold underline underline-offset-4">@{handle}</a>}
+      </div>
+      <div className={`mt-8 grid gap-3 ${posts.length > 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
+        {posts.map((p) => (
+          <a key={p.id} href={p.permalink} target="_blank" rel="noopener noreferrer" className="group relative block overflow-hidden" style={{ borderRadius: "var(--radius)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={igImage(p)} alt={p.caption ? p.caption.slice(0, 120) : "Instagram post"} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full object-cover transition duration-500 group-hover:scale-105" />
+            {p.media_type === "VIDEO" && <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">▶</span>}
           </a>
         ))}
       </div>

@@ -49,3 +49,10 @@ test("still finds classic listing cards", () => {
   assert.equal(r.listings[0].price, "$1,250,000");
   assert.equal(r.listings[0].status, "sold");
 });
+
+test("logos are never headshot candidates, even without an agent name", () => {
+  const html = `<script type="application/ld+json">{"@type":"RealEstateAgent","name":"Stratton Homes","image":"https://x.com/Stratton-Group-Logo-stacked-white.png"}</script>
+    <div class="agent-profile"><img src="https://x.com/Stratton-Group-Logo-white.png" alt="Stratton Group logo"></div>`;
+  const r = parsePage(html, "https://x.com/", "");
+  assert.equal(r.headshots.length, 0);
+});

@@ -8,6 +8,9 @@ import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
 import { DashNav } from "@/components/app/DashNav";
 import { LogoSettings } from "@/components/seo/LogoSettings";
+import { InstagramSettings } from "@/components/seo/InstagramSettings";
+import { getInstagramPosts, instagramConfigured } from "@/lib/instagram";
+import { createAdminClient } from "@/lib/supabase/server";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import { ProfileSettings } from "@/components/seo/ProfileSettings";
 import { briefBio } from "@/lib/social";
@@ -15,7 +18,8 @@ import type { SiteRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ig?: string }> }) {
+  const { ig } = await searchParams;
   const { supabase, user } = await requireUser();
   if (!user) redirect("/login?next=/dashboard/settings");
   const { data } = await supabase.from("sites").select("*").eq("owner_id", user.id).maybeSingle();
@@ -26,7 +30,12 @@ export default async function SettingsPage() {
   const seo = parsed.success ? parsed.data : {};
   const content = site.published_content ?? site.content;
   const origin = canonicalOrigin(site.slug);
-  const [assets, posts] = await Promise.all([getAssets(site.id), getPublishedPosts(site.id, 1000)]);
+  const [assets, posts, igRow, igPosts] = await Promise.all([
+    getAssets(site.id),
+    getPublishedPosts(site.id, 1000),
+    createAdminClient().from("instagram_connections").select("username, expires_at, last_error").eq("site_id", site.id).maybeSingle().then((r) => r.data, () => null),
+    getInstagramPosts(site.id).catch(() => null),
+  ]);
   const generatedLlms = llmsTxt({ slug: site.slug, origin, agent: site.agent, content, seo: { ...seo, llmsTxt: undefined }, publishedAt: site.published_at }, posts);
 
   return (
@@ -36,6 +45,15 @@ export default async function SettingsPage() {
       <h1 className="text-3xl font-bold">Settings</h1>
       <div className="mt-8">
         <LogoSettings siteId={site.id} current={assets.find((a) => a.kind === "logo")?.url ?? null} agentName={site.agent.name ?? ""} />
+      </div>
+      <div className="mt-6">
+        <InstagramSettings
+          siteId={site.id}
+          configured={instagramConfigured()}
+          status={ig}
+          showing={Boolean(site.content?.blocks.some((b) => b.type === "instagram"))}
+          connection={igRow ? { username: igRow.username, expiresAt: igRow.expires_at, lastError: igRow.last_error, postCount: igPosts?.posts.length ?? 0 } : null}
+        />
       </div>
       <div className="mt-6">
         <ProfileSettings

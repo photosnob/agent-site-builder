@@ -1,5 +1,6 @@
 import { createAdminClient } from "./supabase/server";
 import type { PageContent } from "./blocks/schema";
+import { getInstagramPosts, type IgPost } from "./instagram";
 
 export interface Listing {
   id: string;
@@ -62,9 +63,10 @@ export interface SiteData {
   team: TeamMember[];
   posts: { slug: string; title: string; excerpt: string | null; cover_image: string | null; published_at: string | null }[];
   nav: NavPage[];
+  instagram: { username: string | null; posts: IgPost[] } | null;
 }
 
-export const EMPTY_DATA: SiteData = { listings: [], testimonials: [], team: [], posts: [], nav: [] };
+export const EMPTY_DATA: SiteData = { listings: [], testimonials: [], team: [], posts: [], nav: [], instagram: null };
 
 /**
  * Loads everything a public page might render. Tolerates missing tables, so a
@@ -75,15 +77,16 @@ export async function getSiteData(siteId: string, { publishedPagesOnly = true } 
   const safe = async <T,>(p: PromiseLike<{ data: T[] | null; error: unknown }>) => {
     try { const { data, error } = await p; return error ? [] : (data ?? []); } catch { return []; }
   };
-  const [listings, testimonials, team, posts, pages] = await Promise.all([
+  const [listings, testimonials, team, posts, pages, instagram] = await Promise.all([
     safe<Listing>(admin.from("site_listings").select("*").eq("site_id", siteId).order("position").order("created_at", { ascending: false })),
     safe<Testimonial>(admin.from("testimonials").select("*").eq("site_id", siteId).eq("visible", true).order("position").order("created_at", { ascending: false })),
     safe<TeamMember>(admin.from("team_members").select("*").eq("site_id", siteId).order("position").order("created_at")),
     safe<SiteData["posts"][number]>(admin.from("blog_posts").select("slug, title, excerpt, cover_image, published_at").eq("site_id", siteId).eq("status", "published").order("published_at", { ascending: false }).limit(6)),
     safe<Pick<SitePage, "slug" | "nav_label" | "enabled" | "published_content" | "position">>(admin.from("site_pages").select("slug, nav_label, enabled, published_content, position").eq("site_id", siteId).order("position")),
+    getInstagramPosts(siteId).catch(() => null),
   ]);
   const nav = pages.filter((p) => p.enabled && (!publishedPagesOnly || p.published_content)).map((p) => ({ slug: p.slug, label: p.nav_label }));
-  return { listings, testimonials, team, posts, nav };
+  return { listings, testimonials, team, posts, nav, instagram };
 }
 
 export async function getPublishedPage(siteId: string, slug: string) {
