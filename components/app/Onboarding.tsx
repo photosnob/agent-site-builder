@@ -12,7 +12,7 @@ const STEPS = ["Profile", "Your market", "Import", "Design", "Build"];
 async function api(path: string, method: string, body?: unknown) {
   const res = await fetch(path, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  if (!res.ok) throw new Error([data.error || "Something went wrong", data.detail && `(Admin detail: ${data.detail})`].filter(Boolean).join(" "));
   return data;
 }
 

@@ -67,19 +67,66 @@ export async function safeFetch(
     }
     if ([401, 403, 406, 429, 503].includes(res.status)) throw new SiteRefused(`Site refused the request (${res.status})`);
     if (!res.ok || !res.body) throw new Error(`Fetch failed: ${res.status}`);
-    const len = Number(res.headers.get("content-length") || 0);
-    if (len > maxBytes) throw new FetchBlocked("Response too large");
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    const reader = res.body.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) { await reader.cancel(); throw new FetchBlocked("Response too large"); }
-      chunks.push(value);
-    }
-    return { url: url.toString(), contentType: res.headers.get("content-type") || "", body: Buffer.concat(chunks) };
+    return { url: url.toString(), contentType: res.headers.get("content-type") || "", body: await readCapped(res, maxBytes) };
   }
   throw new FetchBlocked("Too many redirects");
+}
+
+async function readCapped(res: Response, maxBytes: number) {
+  const len = Number(res.headers.get("content-length") || 0);
+  if (len > maxBytes) throw new FetchBlocked("Response too large");
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const reader = res.body!.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) { await reader.cancel(); throw new FetchBlocked("Response too large"); }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
+export const scraperEnabled = () => Boolean(process.env.SCRAPINGBEE_API_KEY?.trim());
+
+/**
+ * Fetches through ScrapingBee, which uses residential connections that agent-site
+ * firewalls accept. Only used after a direct request is refused. Tries a standard
+ * proxy first, then a premium one.
+ */
+async function scraperFetch(url: URL, maxBytes: number) {
+  await assertPublic(url); // never let the service be pointed at private addresses
+  let lastStatus = 0;
+  for (const premium of [false, true]) {
+    const api = new URL("https://app.scrapingbee.com/api/v1/");
+    api.searchParams.set("api_key", process.env.SCRAPINGBEE_API_KEY!.trim());
+    api.searchParams.set("url", url.toString());
+    api.searchParams.set("render_js", "false");
+    if (premium) api.searchParams.set("premium_proxy", "true");
+    const res = await fetch(api, { signal: AbortSignal.timeout(45_000) });
+    lastStatus = res.status;
+    if (res.ok && res.body) {
+      const finalUrl = res.headers.get("spb-resolved-url") || url.toString();
+      return { url: finalUrl, contentType: res.headers.get("spb-content-type") || res.headers.get("content-type") || "", body: await readCapped(res, maxBytes) };
+    }
+    await res.body?.cancel();
+    if (res.status === 401 || res.status === 402) break; // bad key or out of credits: retrying won't help
+  }
+  throw new SiteRefused(`Site refused the request, including via the scraping service (${lastStatus})`);
+}
+
+/**
+ * The importer's fetch: direct first, then the scraping service if the site
+ * blocks us (or drops the connection) and a key is configured.
+ */
+export async function fetchWithFallback(input: string, opts: Parameters<typeof safeFetch>[1] = {}) {
+  try {
+    return await safeFetch(input, opts);
+  } catch (e) {
+    const refused = e instanceof SiteRefused || (e instanceof TypeError && /fetch failed/i.test(e.message)) || (e as Error)?.name === "TimeoutError";
+    if (!refused || !scraperEnabled()) throw e instanceof SiteRefused || !refused ? e : new SiteRefused((e as Error).message);
+    console.warn(`[import] direct fetch refused for ${input}; retrying via scraping service`);
+    return scraperFetch(new URL(input), opts.maxBytes ?? 4_000_000);
+  }
 }

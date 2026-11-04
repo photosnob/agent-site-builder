@@ -1,5 +1,5 @@
 import { createAdminClient } from "../supabase/server";
-import { safeFetch } from "./safeFetch";
+import { fetchWithFallback as safeFetch } from "./safeFetch";
 
 const ALLOWED = new Map([
   ["image/jpeg", "jpg"],

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { z } from "zod";
 import { aiEnabled, callStructured, untrusted } from "../ai/claude";
-import { safeFetch } from "./safeFetch";
+import { fetchWithFallback as safeFetch } from "./safeFetch";
 
 export interface ImageCandidate {
   url: string;
