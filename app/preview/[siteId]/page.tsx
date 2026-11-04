@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
 import { getOwnedSite } from "@/lib/auth";
 import { getAssets, headshotOf } from "@/lib/sites";
+import { getPublishedPosts } from "@/lib/blog/server";
+import { publicSiteUrl } from "@/lib/siteUrls";
 import type { SiteContent } from "@/lib/blocks/schema";
 import type { Theme } from "@/lib/blocks/theme";
 
@@ -26,6 +28,9 @@ export default async function Preview({
   }
   if (!content || !theme) return <p className="p-10 text-sm text-stone-500">Nothing generated yet.</p>;
 
-  const assets = await getAssets(siteId);
-  return <SiteRenderer content={content} theme={theme} agent={site.agent} siteId={siteId} interactive={false} headshot={headshotOf(assets)} />;
+  const [assets, posts] = await Promise.all([getAssets(siteId), getPublishedPosts(siteId, 1)]);
+  return (
+    <SiteRenderer content={content} theme={theme} agent={site.agent} siteId={siteId} interactive={false} headshot={headshotOf(assets)}
+      hasBlog={posts.length > 0} blogHref={`${publicSiteUrl(site.slug)}/blog`} />
+  );
 }

@@ -24,6 +24,7 @@ export function SiteRenderer({
   headshot,
   base,
   hasBlog = false,
+  blogHref,
 }: {
   content: SiteContent;
   theme: Theme;
@@ -34,6 +35,7 @@ export function SiteRenderer({
   /** Public path prefix ("" on the agent's own domain, "/s/slug" otherwise). Omit in previews. */
   base?: string;
   hasBlog?: boolean;
+  blogHref?: string;
 }) {
   const blocks = content.blocks;
   return (
@@ -42,6 +44,7 @@ export function SiteRenderer({
       agent={agent}
       base={base}
       hasBlog={hasBlog}
+      blogHref={blogHref}
       sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
     >
       {blocks.map((b) => (

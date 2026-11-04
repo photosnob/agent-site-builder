@@ -8,9 +8,11 @@ type Agent = Partial<AgentProfile>;
  * `base` is the public path prefix; undefined means "same page" (dashboard preview).
  */
 export function SiteShell({
-  theme, agent, base, hasBlog, sections = { listings: true, about: true }, children,
+  theme, agent, base, hasBlog, blogHref, sections = { listings: true, about: true }, children,
 }: {
   theme: Theme; agent: Agent; base?: string; hasBlog?: boolean;
+  /** Where the Blog link goes when there's no base (dashboard preview links to the live blog). */
+  blogHref?: string;
   sections?: { listings: boolean; about: boolean }; children: React.ReactNode;
 }) {
   const home = base === undefined ? "" : base || "/";
@@ -25,6 +27,7 @@ export function SiteShell({
           {sections.listings && <a className="hidden sm:inline" href={anchor("listings")}>Listings</a>}
           {sections.about && <a className="hidden sm:inline" href={anchor("about")}>About</a>}
           {hasBlog && base !== undefined && <a href={`${base}/blog`}>Blog</a>}
+          {hasBlog && base === undefined && blogHref && <a href={blogHref} target="_blank" rel="noopener">Blog</a>}
           <a href={anchor("contact")}>Contact</a>
         </nav>
       </header>
