@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BLOCK_TYPES, Block, IMAGE_SIZES, REQUIRED_BLOCKS, SiteContent, imagesIn, newBlockId } from "../blocks/schema";
+import { BLOCK_TYPES, Block, IMAGE_SIZES, PageContent, REQUIRED_BLOCKS, SiteContent, imagesIn, newBlockId, type AnyContent } from "../blocks/schema";
 import { Theme } from "../blocks/theme";
 import type { SiteAsset } from "../types";
 import { lintClaims, lintFairHousing, type Finding } from "./fairHousing";
@@ -87,7 +87,9 @@ export function fromModelPlan(m: ModelEditPlan): { plan: EditPlan; errors: strin
 const NON_TEXT_FIELDS = new Set(["image", "imageSize", "ctaTarget", "target", "showPhone", "status", "beds", "baths", "sqft"]);
 
 export interface GuardContext {
-  content: SiteContent;
+  content: AnyContent;
+  /** "home" (default) or an inner page, which has different structural rules. */
+  kind?: "home" | "page";
   theme: Theme;
   allowedPalettes: string[];
   assets: SiteAsset[];
@@ -97,7 +99,7 @@ export interface GuardContext {
 
 export interface GuardResult {
   ok: boolean;
-  content: SiteContent;
+  content: AnyContent;
   theme: Theme;
   errors: string[];
   warnings: Finding[];
@@ -129,7 +131,7 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
         const idx = find(op.blockId);
         const asset = assetById.get(op.assetId);
         if (idx < 0 || !asset) { at("unknown block or image"); break; }
-        if (!["hero", "about"].includes(blocks[idx].type as string)) { at("this block has no main image"); break; }
+        if (!["hero", "about", "page-header"].includes(blocks[idx].type as string)) { at("this block has no main image"); break; }
         (blocks[idx].props as Record<string, unknown>).image = asset.url;
         break;
       }
@@ -143,7 +145,8 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
       case "add_block": {
         const idx = find(op.afterBlockId);
         if (idx < 0) { at(`no block ${op.afterBlockId}`); break; }
-        if (op.type === "hero") { at("a site has exactly one hero"); break; }
+        if (op.type === "hero") { at(ctx.kind === "page" ? "heroes belong on the home page" : "a site has exactly one hero"); break; }
+        if (op.type === "page-header") { at(ctx.kind === "page" ? "a page has exactly one page header" : "the home page uses a hero instead"); break; }
         const block = { type: op.type, id: newBlockId(op.type), props: op.props };
         blocks.splice(idx + 1, 0, block);
         changedText.push(...collectStrings(op.props));
@@ -153,7 +156,7 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
         const idx = find(op.blockId);
         if (idx < 0) { at(`no block ${op.blockId}`); break; }
         const type = blocks[idx].type as string;
-        if (REQUIRED_BLOCKS.includes(type as never) && blocks.filter((b) => b.type === type).length === 1) {
+        if (type === "page-header" || (ctx.kind !== "page" && REQUIRED_BLOCKS.includes(type as never) && blocks.filter((b) => b.type === type).length === 1)) {
           at(`the ${type} section is required`);
           break;
         }
@@ -202,7 +205,7 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
   }
 
   // Structural validation of the whole result.
-  const parsed = SiteContent.safeParse({ blocks });
+  const parsed = (ctx.kind === "page" ? PageContent : SiteContent).safeParse({ blocks });
   if (!parsed.success) errors.push(...parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".") || "site"}: ${i.message}`));
   const content = parsed.success ? parsed.data : ctx.content;
 
@@ -266,6 +269,6 @@ const norm = (s: string) => s.toLowerCase().replace(/[\s,]+/g, "");
 const uniq = (f: Finding[]) => f.filter((x, i) => f.findIndex((y) => y.match === x.match && y.rule === x.rule) === i);
 
 /** Compact, id-tagged view of the page for the model. */
-export function describeForModel(content: SiteContent): string {
+export function describeForModel(content: AnyContent): string {
   return JSON.stringify(content.blocks.map((b: Block) => ({ id: b.id, type: b.type, props: b.props })), null, 0);
 }

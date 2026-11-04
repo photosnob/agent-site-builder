@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPublishedPosts } from "../blog/server";
 import { getPublishedSiteBySlug } from "../sites";
 import { canonicalOrigin } from "../siteUrls";
+import { createAdminClient } from "../supabase/server";
 import { SiteSeo } from "./schema";
 import type { SeoSite } from "./files";
 
@@ -17,8 +18,18 @@ export async function loadSeoSite(slug: string) {
     seo: parsed.success ? parsed.data : {},
     publishedAt: site.published_at,
   };
-  const posts = await getPublishedPosts(site.id, 1000);
+  const [posts, pages] = await Promise.all([getPublishedPosts(site.id, 1000), publishedPages(site.id)]);
+  seoSite.pages = pages;
   return { site, seoSite, posts };
+}
+
+async function publishedPages(siteId: string) {
+  try {
+    const { data } = await createAdminClient().from("site_pages").select("slug, title, updated_at, published_content").eq("site_id", siteId).eq("enabled", true).order("position");
+    return (data ?? []).filter((p) => p.published_content).map(({ slug, title, updated_at }) => ({ slug, title, updated_at }));
+  } catch {
+    return [];
+  }
 }
 
 export const textResponse = (body: string, type: string) =>

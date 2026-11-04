@@ -111,6 +111,53 @@ export const ContactBlock = z.object({
   }),
 });
 
+/* ---- Sections used mostly on inner pages (Buy, Sell, Team, Success Stories) ---- */
+
+export const PageHeaderBlock = z.object({
+  type: z.literal("page-header"),
+  id: blockId,
+  props: z.object({ eyebrow: plain(60).optional(), headline: plain(90), intro: plain(400).optional(), image: imageRef.optional() }),
+});
+
+export const RichTextBlock = z.object({
+  type: z.literal("rich-text"),
+  id: blockId,
+  props: z.object({ headline: plain(90).optional(), body: plain(4000) }), // paragraphs separated by blank lines
+});
+
+export const StepsBlock = z.object({
+  type: z.literal("steps"),
+  id: blockId,
+  props: z.object({ headline: plain(90), intro: plain(400).optional(), items: z.array(z.object({ title: plain(80), body: plain(600) })).min(1).max(12) }),
+});
+
+export const FaqBlock = z.object({
+  type: z.literal("faq"),
+  id: blockId,
+  props: z.object({ headline: plain(90), items: z.array(z.object({ q: plain(160), a: plain(900) })).min(1).max(12) }),
+});
+
+/** Data-driven: renders the agent's team members. */
+export const TeamGridBlock = z.object({
+  type: z.literal("team-grid"),
+  id: blockId,
+  props: z.object({ headline: plain(90), intro: plain(400).optional() }),
+});
+
+/** Data-driven: renders curated reviews (all visible, or only featured). */
+export const ReviewsBlock = z.object({
+  type: z.literal("reviews"),
+  id: blockId,
+  props: z.object({ headline: plain(90), intro: plain(400).optional(), mode: z.enum(["all", "featured"]) }),
+});
+
+/** Data-driven: latest blog posts. */
+export const RecentPostsBlock = z.object({
+  type: z.literal("recent-posts"),
+  id: blockId,
+  props: z.object({ headline: plain(90), count: z.number().int().min(2).max(6) }),
+});
+
 export const Block = z.discriminatedUnion("type", [
   HeroBlock,
   AboutBlock,
@@ -120,6 +167,13 @@ export const Block = z.discriminatedUnion("type", [
   StatsBlock,
   CtaBlock,
   ContactBlock,
+  PageHeaderBlock,
+  RichTextBlock,
+  StepsBlock,
+  FaqBlock,
+  TeamGridBlock,
+  ReviewsBlock,
+  RecentPostsBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 export type BlockType = Block["type"];
@@ -133,6 +187,13 @@ export const BLOCK_TYPES = [
   "stats",
   "cta",
   "contact",
+  "page-header",
+  "rich-text",
+  "steps",
+  "faq",
+  "team-grid",
+  "reviews",
+  "recent-posts",
 ] as const satisfies readonly BlockType[];
 
 /** Blocks a site must always have, and where. */
@@ -152,14 +213,31 @@ export const SiteContent = z
     if (c.blocks[0]?.type !== "hero") ctx.addIssue({ code: "custom", message: "The hero must be the first block" });
     if (c.blocks.filter((b) => b.type === "hero").length > 1)
       ctx.addIssue({ code: "custom", message: "Only one hero is allowed" });
+    if (c.blocks.some((b) => b.type === "page-header")) ctx.addIssue({ code: "custom", message: "The home page uses a hero, not a page header" });
   });
 export type SiteContent = z.infer<typeof SiteContent>;
 
+/** Inner pages: start with a page header, never a hero. */
+export const PageContent = z
+  .object({ blocks: z.array(Block).min(1).max(16) })
+  .superRefine((c, ctx) => {
+    const ids = new Set<string>();
+    for (const b of c.blocks) {
+      if (ids.has(b.id)) ctx.addIssue({ code: "custom", message: `Duplicate block id ${b.id}` });
+      ids.add(b.id);
+    }
+    if (c.blocks[0]?.type !== "page-header") ctx.addIssue({ code: "custom", message: "A page must start with its page header" });
+    if (c.blocks.filter((b) => b.type === "page-header").length > 1) ctx.addIssue({ code: "custom", message: "Only one page header is allowed" });
+    if (c.blocks.some((b) => b.type === "hero")) ctx.addIssue({ code: "custom", message: "Heroes belong on the home page" });
+  });
+export type PageContent = z.infer<typeof PageContent>;
+export type AnyContent = SiteContent | PageContent;
+
 /** Collect every image URL a content tree references. */
-export function imagesIn(content: SiteContent): string[] {
+export function imagesIn(content: { blocks: Block[] }): string[] {
   const out: string[] = [];
   for (const b of content.blocks) {
-    if ((b.type === "hero" || b.type === "about") && b.props.image) out.push(b.props.image);
+    if ((b.type === "hero" || b.type === "about" || b.type === "page-header") && b.props.image) out.push(b.props.image);
     if (b.type === "featured-listings") b.props.items.forEach((i) => out.push(i.image));
   }
   return out;

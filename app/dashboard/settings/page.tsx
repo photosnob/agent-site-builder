@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getAssets } from "@/lib/sites";
@@ -7,6 +6,9 @@ import { canonicalOrigin } from "@/lib/siteUrls";
 import { defaultDescription, defaultTitle, llmsTxt } from "@/lib/seo/files";
 import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
+import { DashNav } from "@/components/app/DashNav";
+import { LogoSettings } from "@/components/seo/LogoSettings";
+import { publicSiteUrl } from "@/lib/siteUrls";
 import { ProfileSettings } from "@/components/seo/ProfileSettings";
 import { briefBio } from "@/lib/social";
 import type { SiteRow } from "@/lib/types";
@@ -28,10 +30,14 @@ export default async function SettingsPage() {
   const generatedLlms = llmsTxt({ slug: site.slug, origin, agent: site.agent, content, seo: { ...seo, llmsTxt: undefined }, publishedAt: site.published_at }, posts);
 
   return (
+    <>
+    <DashNav active="/dashboard/settings" liveUrl={site.status === "live" ? publicSiteUrl(site.slug) : null} />
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <Link href="/dashboard" className="text-sm text-stone-500 hover:text-stone-900">← Site editor</Link>
-      <h1 className="mt-2 text-3xl font-bold">Settings</h1>
+      <h1 className="text-3xl font-bold">Settings</h1>
       <div className="mt-8">
+        <LogoSettings siteId={site.id} current={assets.find((a) => a.kind === "logo")?.url ?? null} agentName={site.agent.name ?? ""} />
+      </div>
+      <div className="mt-6">
         <ProfileSettings
           siteId={site.id}
           initial={{ shortBio: site.agent.shortBio, socials: site.agent.socials }}
@@ -50,5 +56,6 @@ export default async function SettingsPage() {
         postCount={posts.length}
       />
     </main>
+    </>
   );
 }

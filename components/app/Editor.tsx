@@ -2,6 +2,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Finding } from "@/lib/guardrails/fairHousing";
+import { DashNav } from "./DashNav";
+
+type PageRef = { id: string; slug: string; title: string; enabled: boolean };
 
 type Rev = { id: string; status: string; source: string; prompt: string | null; created_at: string };
 type Lead = { id: string; name: string; email: string | null; phone: string | null; intent: string | null; message: string | null; created_at: string };
@@ -18,6 +21,7 @@ const SUGGESTIONS = [
 export function Editor(props: {
   siteId: string; slug: string; status: string; liveUrl: string; publishedAt: string | null;
   aiReady: boolean; revisions: Rev[]; leads: Lead[]; editsLeft: number; editsLimit: number;
+  pages: PageRef[];
 }) {
   const router = useRouter();
   const frame = useRef<HTMLIFrameElement>(null);
@@ -29,9 +33,12 @@ export function Editor(props: {
   const [tab, setTab] = useState<"edit" | "history" | "leads">("edit");
   const [previewKey, setPreviewKey] = useState(0);
   const [editsLeft, setEditsLeft] = useState(props.editsLeft);
+  const [pageId, setPageId] = useState<string | null>(null);
+  const page = props.pages.find((p) => p.id === pageId) ?? null;
 
   const base = `/api/sites/${props.siteId}`;
-  const previewSrc = `/preview/${props.siteId}${proposal?.revisionId ? `?rev=${proposal.revisionId}` : ""}`;
+  const qs = new URLSearchParams({ ...(page ? { page: page.slug } : {}), ...(proposal?.revisionId ? { rev: proposal.revisionId } : {}) }).toString();
+  const previewSrc = `/preview/${props.siteId}${qs ? `?${qs}` : ""}`;
 
   async function call(label: string, path: string, body?: unknown) {
     setBusy(label); setError(null);
@@ -45,7 +52,7 @@ export function Editor(props: {
   }
 
   async function propose() {
-    const data = await call("propose", `${base}/edit`, { prompt });
+    const data = await call("propose", `${base}/edit`, { prompt, pageId });
     if (data) { setProposal(data); setAck(false); setPreviewKey((k) => k + 1); }
   }
   async function resolve(action: "apply" | "discard") {
@@ -56,23 +63,12 @@ export function Editor(props: {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-stone-200 bg-white px-5 py-3">
-        <div className="flex items-center gap-3">
-          <span className="font-bold">Porchlight</span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${props.status === "live" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
-            {props.status === "live" ? "Live" : "Draft"}
-          </span>
-          {props.status === "live" && <a href={props.liveUrl} target="_blank" className="text-sm text-stone-500 underline">{props.liveUrl.startsWith("/") ? "View live site ↗" : props.liveUrl.replace(/^https?:\/\//, "")}</a>}
-        </div>
-        <div className="flex gap-2">
-          <a className="btn-ghost" href="/dashboard/blog">Blog</a>
-          <a className="btn-ghost" href="/dashboard/settings">Settings</a>
-          <button className="btn-ghost" disabled={!!busy} onClick={async () => { if (await call("undo", `${base}/undo`)) { setPreviewKey((k) => k + 1); router.refresh(); } }}>Undo</button>
-          <button className="btn" disabled={!!busy || !!proposal} onClick={async () => { if (await call("publish", `${base}/publish`)) router.refresh(); }}>
-            {busy === "publish" ? "Publishing…" : props.status === "live" ? "Publish changes" : "Publish site"}
-          </button>
-        </div>
-      </header>
+      <DashNav active="/dashboard" liveUrl={props.status === "live" ? props.liveUrl : null} right={<>
+        <button className="btn-ghost" disabled={!!busy} onClick={async () => { if (await call("undo", `${base}/undo`, { pageId })) { setPreviewKey((k) => k + 1); router.refresh(); } }}>Undo</button>
+        <button className="btn" disabled={!!busy || !!proposal} onClick={async () => { if (await call("publish", `${base}/publish`)) router.refresh(); }}>
+          {busy === "publish" ? "Publishing…" : props.status === "live" ? "Publish changes" : "Publish site"}
+        </button>
+      </>} />
 
       <div className="grid min-h-0 flex-1 md:grid-cols-[380px_1fr]">
         <aside className="flex min-h-0 flex-col border-r border-stone-200 bg-white">
@@ -85,6 +81,8 @@ export function Editor(props: {
           </nav>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {error && <p className="mb-3 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            <PagePicker pages={props.pages} value={pageId} disabled={!!proposal || !!busy} siteId={props.siteId}
+              onChange={(id) => { setPageId(id); setPreviewKey((k) => k + 1); }} onChanged={() => router.refresh()} />
 
             {tab === "edit" && (
               <div className="space-y-4">
@@ -166,6 +164,46 @@ export function Editor(props: {
           <iframe key={`${previewKey}-${proposal?.revisionId ?? "draft"}`} ref={frame} src={previewSrc} title="Site preview" className="h-full w-full rounded-lg border border-stone-200 bg-white" />
         </div>
       </div>
+    </div>
+  );
+}
+
+function PagePicker({ pages, value, onChange, disabled, siteId, onChanged }: {
+  pages: PageRef[]; value: string | null; onChange: (id: string | null) => void; disabled: boolean; siteId: string; onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const current = pages.find((p) => p.id === value);
+  return (
+    <div className="mb-4 rounded-lg border border-stone-200 p-3">
+      <label className="label" htmlFor="page-picker">Editing</label>
+      <select id="page-picker" className="input" disabled={disabled} value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">Home page</option>
+        {pages.map((p) => <option key={p.id} value={p.id}>{p.title}{p.enabled ? "" : " (hidden)"}</option>)}
+      </select>
+      {current && (
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={current.enabled} disabled={busy} onChange={async (e) => {
+            setBusy(true);
+            await fetch(`/api/sites/${siteId}/pages/${current.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: e.target.checked }) });
+            setBusy(false); onChanged();
+          }} />
+          Show this page in the menu
+        </label>
+      )}
+      {pages.length === 0 && (
+        <div className="mt-2 text-sm">
+          <p className="text-stone-500">Add Buy, Sell, Team and Success Stories pages, written for you.</p>
+          <button className="btn-ghost mt-2 w-full" disabled={busy} onClick={async () => {
+            setBusy(true); setErr(null);
+            const res = await fetch(`/api/sites/${siteId}/pages`, { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            setBusy(false);
+            if (!res.ok) setErr(data.error ?? "Couldn't create pages"); else onChanged();
+          }}>{busy ? "Writing pages… (about 30s)" : "Add default pages"}</button>
+          {err && <p className="mt-2 text-red-700">{err}</p>}
+        </div>
+      )}
     </div>
   );
 }

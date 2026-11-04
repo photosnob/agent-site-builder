@@ -7,6 +7,7 @@ import { getAssets } from "@/lib/sites";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AgentProfile } from "@/lib/types";
 import { z } from "zod";
+import type { AnyContent } from "@/lib/blocks/schema";
 
 export const maxDuration = 60;
 
@@ -18,7 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!aiEnabled()) return fail("AI editing needs ANTHROPIC_API_KEY to be set", 503);
   if (!site.content || !site.theme || !site.template) return fail("Generate the site first");
 
-  const body = z.object({ prompt: z.string().trim().min(3).max(1000) }).safeParse(await req.json());
+  const body = z.object({ prompt: z.string().trim().min(3).max(1000), pageId: z.string().uuid().nullable().optional() }).safeParse(await req.json());
   if (!body.success) return fail("Describe the change in a sentence or two (max 1,000 characters).");
 
   const admin = createAdminClient();
@@ -30,12 +31,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return fail(`You've used all ${quota.limit} AI edits for today. They reset at midnight.`, 429, { remainingToday: 0 });
   }
 
+  // Editing an inner page instead of the home page?
+  let target: { content: AnyContent; pageId: string | null; page?: { kind: "page"; title: string } } = { content: site.content, pageId: null };
+  if (body.data.pageId) {
+    const { data: page } = await admin.from("site_pages").select("id, title, content").eq("id", body.data.pageId).eq("site_id", site.id).maybeSingle();
+    if (!page) return fail("Page not found", 404);
+    target = { content: page.content as AnyContent, pageId: page.id, page: { kind: "page", title: page.title } };
+  }
+
   const agent = AgentProfile.parse(site.agent);
   const assets = await getAssets(site.id);
   let result;
   try {
     result = await planAndApplyEdit({
-      prompt: body.data.prompt, content: site.content, theme: site.theme, templateId: site.template,
+      prompt: body.data.prompt, content: target.content, page: target.page, theme: site.theme, templateId: site.template,
       agent, assets, imported: site.import_data, siteId: site.id, userId: user.id,
     });
   } catch (e) {
@@ -49,6 +58,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: rev } = await admin.from("site_revisions").insert({
     site_id: site.id,
+    page_id: target.pageId,
     status: result.ok ? "proposed" : "discarded",
     source: "ai_edit",
     prompt: body.data.prompt,

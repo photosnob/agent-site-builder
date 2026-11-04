@@ -21,6 +21,18 @@ Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, buil
 
 Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served from `app/h/[slug]` via `proxy.ts`.
 
+### Pages, listings, reviews, team
+
+Besides the home page, each site gets **Buy**, **Sell** (a seller's guide), **Meet the Team** and **Success Stories** pages (`lib/pages/defaults.ts`; Claude personalizes the Buy/Sell copy). Pages are edited with the same guarded prompt editor (pick the page at the top of the editor) and published together with the home page. Data-driven sections render from dashboard-managed tables, and changes there go live immediately:
+- **Listings** (`/dashboard/listings`): hand-entered properties with photos, a stopgap until MLS/IDX. They replace the imported items in every Featured listings section.
+- **Reviews** (`/dashboard/reviews`): curate, hide, reorder and star reviews. Starred ones show on the home page, and all visible ones on Success Stories. Imported testimonials are copied in the first time.
+- **Team** (`/dashboard/team`): team members after the agent.
+- **Logo** (Settings): solid backgrounds are removed in the browser (`lib/logo.ts`), previewed, then uploaded as a trimmed PNG.
+
+### Email
+
+New leads are emailed to the agent through Resend (`lib/email.ts`); replies go to the lead. Set `RESEND_API_KEY` and `EMAIL_FROM` (on a domain verified in Resend).
+
 ### SEO
 
 Generated automatically for every site and refreshed on publish: `/sitemap.xml`, `/robots.txt` (on agent subdomains), `/llms.txt`, `/blog/rss.xml`, canonical URLs, Open Graph/Twitter cards, `RealEstateAgent` structured data on the home page, and `BlogPosting` on posts. Agents can override all of this in **Settings** (`/dashboard/settings`): site title, meta description, social share image, a "hide from search engines" switch, Google Search Console verification, and a custom llms.txt (paste or upload). Each post also has its own SEO title and meta description, with a search-result preview. The app's own domain serves its own robots.txt and sitemap. Until a root domain is configured, that sitemap lists the `/s/<slug>` sites.
@@ -53,7 +65,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash

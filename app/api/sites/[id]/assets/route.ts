@@ -37,7 +37,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (file.size > 8_000_000) return fail("Images must be under 8 MB");
     try {
       const stored = await storeImage(siteId, Buffer.from(await file.arrayBuffer()));
-      if (kind.data === "headshot") await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", "headshot");
+      // One headshot and one logo per site: replace the previous one.
+      if (kind.data === "headshot" || kind.data === "logo") await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", kind.data);
       const { data } = await admin.from("site_assets").insert({ site_id: siteId, kind: kind.data, url: stored.url, storage_path: stored.path, meta: {} }).select("id, kind, url, meta").single();
       return json({ asset: data });
     } catch {

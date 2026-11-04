@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
 import { getAssets, getPublishedSiteBySlug, headshotOf } from "@/lib/sites";
-import { getPublishedPosts } from "@/lib/blog/server";
+import { getSiteData } from "@/lib/siteData";
 import { basePath, canonicalOrigin } from "@/lib/siteUrls";
 import { defaultDescription, defaultTitle } from "@/lib/seo/files";
 import { homeGraph } from "@/lib/seo/jsonld";
@@ -42,7 +42,7 @@ export async function homeMetadata(slug: string, _hosted: boolean): Promise<Meta
 export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean }) {
   const site = await getPublishedSiteBySlug(slug);
   if (!site?.published_content || !site.published_theme) notFound();
-  const [assets, posts] = await Promise.all([getAssets(site.id), getPublishedPosts(site.id, 1)]);
+  const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
   const seo = seoOf(site.seo);
   const jsonLd = homeGraph({
     origin: canonicalOrigin(slug),
@@ -62,7 +62,9 @@ export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean
         siteId={site.id}
         headshot={headshotOf(assets)}
         base={basePath(slug, hosted)}
-        hasBlog={posts.length > 0}
+        hasBlog={data.posts.length > 0}
+        data={data}
+        logo={assets.find((x) => x.kind === "logo")?.url}
       />
     </>
   );

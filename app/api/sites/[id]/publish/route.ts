@@ -1,5 +1,6 @@
 import { fail, json, ownedSiteOr404 } from "@/lib/api";
-import { SiteContent } from "@/lib/blocks/schema";
+import { PageContent, SiteContent } from "@/lib/blocks/schema";
+import { listPages } from "@/lib/pages/server";
 import { Theme } from "@/lib/blocks/theme";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AgentProfile } from "@/lib/types";
@@ -18,12 +19,19 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!content.success || !theme.success) return fail("The draft has errors. Regenerate or undo the last change.");
   if (!agent.success) return fail("Your license number and brokerage are required before publishing.");
 
-  await createAdminClient().from("sites").update({
+  // Every page must validate too, or nothing is published.
+  const pages = await listPages(site.id);
+  for (const p of pages) {
+    if (!PageContent.safeParse(p.content).success) return fail(`The "${p.title}" page has errors. Undo its last change first.`);
+  }
+  const admin = createAdminClient();
+  await admin.from("sites").update({
     published_content: content.data,
     published_theme: theme.data,
     status: "live",
     published_at: new Date().toISOString(),
   }).eq("id", site.id);
-  revalidateSite(site.slug, "", "/blog");
+  await Promise.all(pages.map((p) => admin.from("site_pages").update({ published_content: p.content }).eq("id", p.id)));
+  revalidateSite(site.slug, "", "/blog", ...pages.map((p) => `/${p.slug}`));
   return json({ ok: true, slug: site.slug });
 }

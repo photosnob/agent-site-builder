@@ -5,6 +5,7 @@ import { aiEnabled } from "@/lib/ai/claude";
 import type { SiteRow } from "@/lib/types";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import { editsLeftToday } from "@/lib/ai/usage";
+import { listPages, seedTestimonialsFromImport } from "@/lib/pages/server";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function Dashboard() {
   ]);
 
   const liveUrl = publicSiteUrl(site.slug);
+  const [pages] = await Promise.all([listPages(site.id), seedTestimonialsFromImport(site).catch(() => 0)]);
   const quota = await editsLeftToday(site.id, (site as SiteRow & { ai_daily_edit_limit?: number | null }).ai_daily_edit_limit ?? null);
 
   return (
@@ -33,6 +35,7 @@ export default async function Dashboard() {
       aiReady={aiEnabled()}
       editsLeft={quota.left}
       editsLimit={quota.limit}
+      pages={pages.map((p) => ({ id: p.id, slug: p.slug, title: p.title, enabled: p.enabled }))}
       revisions={revisions ?? []}
       leads={leads ?? []}
     />

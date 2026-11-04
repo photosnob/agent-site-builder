@@ -4,6 +4,7 @@ import { getAssets } from "@/lib/sites";
 import { createAdminClient } from "@/lib/supabase/server";
 import { TEMPLATES } from "@/lib/templates";
 import { AgentProfile } from "@/lib/types";
+import { createMissingDefaultPages, seedTestimonialsFromImport } from "@/lib/pages/server";
 
 export const maxDuration = 120;
 
@@ -22,5 +23,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const admin = createAdminClient();
   await admin.from("site_revisions").insert({ site_id: site.id, status: "applied", source: "generate", content, theme, warnings, created_by: user.id });
   await admin.from("sites").update({ content, theme, status: site.status === "live" ? "live" : "draft", onboarding_step: 6 }).eq("id", site.id);
+  // Default Buy, Sell, Team and Success Stories pages, and imported reviews. Best effort:
+  // the home page is already saved, and pages can be added later from the editor.
+  const extras = await Promise.allSettled([createMissingDefaultPages({ ...site, theme }, user.id), seedTestimonialsFromImport({ ...site, content })]);
+  extras.forEach((r) => r.status === "rejected" && console.error("[generate] extras failed", r.reason));
   return json({ ok: true, warnings });
 }

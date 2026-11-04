@@ -28,7 +28,7 @@ export const Theme = z.object({
   palette: z.enum(Object.keys(PALETTES) as [PaletteName, ...PaletteName[]]),
   fonts: z.enum(Object.keys(FONT_PAIRS) as [FontPairName, ...FontPairName[]]),
   radius: z.enum(["none", "soft", "round"]),
-  heroStyle: z.enum(["full-bleed", "split", "centered"]),
+  heroStyle: z.enum(["full-bleed", "split", "centered", "video", "slideshow"]),
 });
 export type Theme = z.infer<typeof Theme>;
 

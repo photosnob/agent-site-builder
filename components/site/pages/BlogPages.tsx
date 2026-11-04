@@ -9,6 +9,7 @@ import { getPublishedSiteBySlug } from "@/lib/sites";
 import { basePath, canonicalOrigin } from "@/lib/siteUrls";
 import { seoOf } from "./HomePage";
 import { getAssets, headshotOf } from "@/lib/sites";
+import { getSiteData } from "@/lib/siteData";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { AuthorBox } from "@/components/blog/AuthorBox";
 import { blogIndexGraph, blogPostGraph, type LdSite } from "@/lib/seo/jsonld";
@@ -22,8 +23,8 @@ async function loadSite(slug: string) {
   return site as typeof site & { published_theme: NonNullable<typeof site.published_theme> };
 }
 
-async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string): Promise<LdSite & { aboutBody?: string }> {
-  const assets = await getAssets(site.id);
+async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string): Promise<LdSite & { aboutBody?: string; nav: Awaited<ReturnType<typeof getSiteData>>["nav"] }> {
+  const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
   const about = site.published_content?.blocks.find((b) => b.type === "about");
   return {
     origin: canonicalOrigin(slug),
@@ -33,6 +34,7 @@ async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string):
     headshot: headshotOf(assets),
     logo: assets.find((a) => a.kind === "logo")?.url,
     aboutBody: about?.type === "about" ? about.props.body : undefined,
+    nav: data.nav,
   };
 }
 
@@ -58,7 +60,7 @@ export async function BlogIndexPage({ slug, hosted }: { slug: string; hosted: bo
   const [posts, ld] = await Promise.all([getPublishedPosts(site.id), ldSite(site, slug)]);
   const base = basePath(slug, hosted);
   return (
-    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
       <JsonLd data={blogIndexGraph(ld, posts)} />
       <div className="site-container py-12 md:py-16">
@@ -129,7 +131,7 @@ export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; p
   });
 
   return (
-    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
       <JsonLd data={graphData} />
       <article className="site-container py-10 md:py-14">

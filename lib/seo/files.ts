@@ -5,6 +5,8 @@ import type { SiteSeo } from "./schema";
 /** Data the SEO files are generated from. */
 export interface SeoSite {
   slug: string;
+  /** Published inner pages (Buy, Sell, Team…). */
+  pages?: { slug: string; title: string; updated_at?: string }[];
   origin: string; // public origin + base path, no trailing slash
   agent: Partial<AgentProfile>;
   content: SiteContent | null;
@@ -30,6 +32,7 @@ export function sitemapXml(site: SeoSite, posts: SeoPost[]) {
   const latestPost = posts.reduce<string | null>((m, p) => (!m || p.updated_at > m ? p.updated_at : m), null);
   const urls = [
     { loc: site.origin || "/", lastmod: iso(site.publishedAt), priority: "1.0" },
+    ...(site.pages ?? []).map((p) => ({ loc: `${site.origin}/${p.slug}`, lastmod: iso(p.updated_at ?? site.publishedAt), priority: "0.8" })),
     ...(posts.length ? [{ loc: `${site.origin}/blog`, lastmod: iso(latestPost), priority: "0.7" }] : []),
     ...posts.map((p) => ({ loc: `${site.origin}/blog/${p.slug}`, lastmod: iso(p.updated_at), priority: "0.6" })),
   ];
@@ -67,6 +70,7 @@ export function llmsTxt(site: SeoSite, posts: SeoPost[]) {
   ];
   if (about?.type === "about") lines.push("", "## About", "", about.props.body.slice(0, 1500));
   lines.push("", "## Pages", "", `- [Home](${site.origin || "/"}): listings, about, and contact`);
+  for (const p of site.pages ?? []) lines.push(`- [${p.title}](${site.origin}/${p.slug})`);
   if (posts.length) {
     lines.push(`- [Blog](${site.origin}/blog): market updates and guides`, "", "## Blog posts", "");
     for (const p of posts.slice(0, 50)) {

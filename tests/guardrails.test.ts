@@ -74,3 +74,17 @@ test("About photo size can be set to a preset only", () => {
   assert.equal(applyEditPlan({ summary: "", ops: [{ op: "set_image_size", blockId: "hero-aaaa", size: "small" }] }, ctx).ok, false);
   assert.equal(applyEditPlan({ summary: "", ops: [{ op: "set_text", blockId: "about-bbbb", path: "imageSize", value: "tiny" }] }, ctx).ok, false);
 });
+
+test("inner pages: header stays first, no heroes, contact optional", async () => {
+  const { buildPage, _test } = await import("../lib/pages/defaults");
+  const page = buildPage("team", _test.defaultCopy({ name: "Pete Peterson" }), { name: "Pete Peterson" });
+  const pctx = { ...ctx, content: page, kind: "page" as const };
+  const contactId = page.blocks.find((b) => b.type === "contact")!.id;
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "remove_block", blockId: contactId }] }, pctx).ok, true);
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "remove_block", blockId: page.blocks[0].id }] }, pctx).ok, false);
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "add_block", type: "hero", afterBlockId: page.blocks[0].id, props: {} }] }, pctx).ok, false);
+  const ok = applyEditPlan({ summary: "", ops: [{ op: "add_block", type: "faq", afterBlockId: page.blocks[1].id, props: { headline: "Questions", items: [{ q: "Do you work weekends?", a: "Yes." }] } }] }, pctx);
+  assert.equal(ok.ok, true);
+  // And the home page rejects page headers.
+  assert.equal(applyEditPlan({ summary: "", ops: [{ op: "add_block", type: "page-header", afterBlockId: "hero-aaaa", props: { headline: "x" } }] }, ctx).ok, false);
+});

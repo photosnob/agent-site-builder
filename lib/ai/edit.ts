@@ -1,4 +1,4 @@
-import type { SiteContent } from "../blocks/schema";
+import type { AnyContent } from "../blocks/schema";
 import { FONT_PAIRS, type Theme } from "../blocks/theme";
 import { ModelEditPlan, applyEditPlan, describeForModel, fromModelPlan, type EditPlan, type GuardResult } from "../guardrails/ops";
 import { TEMPLATES, type TemplateId } from "../templates";
@@ -8,7 +8,9 @@ import { factsOf } from "./generate";
 
 export async function planAndApplyEdit(input: {
   prompt: string;
-  content: SiteContent;
+  content: AnyContent;
+  /** Which page is being edited, for the model and the structural rules. */
+  page?: { kind: "home" | "page"; title: string };
   theme: Theme;
   templateId: TemplateId;
   agent: AgentProfile;
@@ -42,6 +44,7 @@ export async function planAndApplyEdit(input: {
       `Agent facts (trusted):\n${factsOf(input.agent)}`,
       `Image library:\n${JSON.stringify(input.assets.map((a) => ({ assetId: a.id, kind: a.kind, ...a.meta })))}`,
       `Current theme: ${JSON.stringify(input.theme)}`,
+      `Page being edited: ${input.page?.kind === "page" ? `the "${input.page.title}" page (starts with a page-header; heroes are home-page only)` : "the home page (starts with the hero)"}`,
       untrusted("current_page_blocks", describeForModel(input.content)),
       `Agent's request:\n${input.prompt}`,
     ].join("\n\n"),
@@ -56,6 +59,7 @@ export async function planAndApplyEdit(input: {
   }
 
   const result = applyEditPlan(plan, {
+    kind: input.page?.kind ?? "home",
     content: input.content,
     theme: input.theme,
     allowedPalettes: t.allowedPalettes,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { NewPostButton } from "@/components/blog/NewPostButton";
+import { DashNav } from "@/components/app/DashNav";
 import { publicSiteUrl } from "@/lib/siteUrls";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +20,12 @@ export default async function BlogDashboard() {
   const blogUrl = `${publicSiteUrl(site.slug)}/blog`;
 
   return (
+    <>
+    <DashNav active="/dashboard/blog" liveUrl={site.status === "live" ? publicSiteUrl(site.slug) : null} />
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/dashboard" className="text-sm text-stone-500 hover:text-stone-900">← Site editor</Link>
-          <h1 className="mt-2 text-3xl font-bold">Blog</h1>
+          <h1 className="text-3xl font-bold">Blog</h1>
         </div>
         <div className="flex gap-2">
           {site.status === "live" && <a href={blogUrl} target="_blank" className="btn-ghost">View blog ↗</a>}
@@ -48,5 +50,6 @@ export default async function BlogDashboard() {
         ))}
       </div>
     </main>
+    </>
   );
 }

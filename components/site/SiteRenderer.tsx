@@ -1,4 +1,6 @@
-import type { Block, SiteContent } from "@/lib/blocks/schema";
+import type { AnyContent, Block } from "@/lib/blocks/schema";
+import { EMPTY_DATA, listingsForBlock, type SiteData } from "@/lib/siteData";
+import { Faq, PageHeader, RecentPosts, Reviews, RichText, Steps, TeamGrid } from "./InnerBlocks";
 import type { Theme } from "@/lib/blocks/theme";
 import type { AgentProfile } from "@/lib/types";
 import { LeadForm } from "./LeadForm";
@@ -25,8 +27,10 @@ export function SiteRenderer({
   base,
   hasBlog = false,
   blogHref,
+  data = EMPTY_DATA,
+  logo,
 }: {
-  content: SiteContent;
+  content: AnyContent;
   theme: Theme;
   agent: Agent;
   siteId: string;
@@ -36,6 +40,9 @@ export function SiteRenderer({
   base?: string;
   hasBlog?: boolean;
   blogHref?: string;
+  /** Listings, reviews, team, posts and nav pages for data-driven sections. */
+  data?: SiteData;
+  logo?: string;
 }) {
   const blocks = content.blocks;
   return (
@@ -45,32 +52,42 @@ export function SiteRenderer({
       base={base}
       hasBlog={hasBlog}
       blogHref={blogHref}
+      nav={data.nav}
+      logo={logo}
+      overlayHeader={blocks[0]?.type === "hero" && (theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && Boolean((blocks[0].type === "hero" && blocks[0].props.image) || headshot)}
       sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
     >
       {blocks.map((b) => (
         <section key={b.id} data-block-id={b.id} data-block-type={b.type}>
-          <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} />
+          <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} data={data} base={base} />
         </section>
       ))}
     </SiteShell>
   );
 }
 
-function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
-  block: Block; theme: Theme; agent: Agent; siteId: string; interactive: boolean; headshot?: string;
+function BlockView({ block: b, theme, agent, siteId, interactive, headshot, data, base }: {
+  block: Block; theme: Theme; agent: Agent; siteId: string; interactive: boolean; headshot?: string; data: SiteData; base?: string;
 }) {
   switch (b.type) {
+    case "page-header": return <PageHeader b={b} />;
+    case "rich-text": return <RichText b={b} />;
+    case "steps": return <Steps b={b} />;
+    case "faq": return <Faq b={b} />;
+    case "team-grid": return <TeamGrid b={b} data={data} agent={agent} headshot={headshot} />;
+    case "reviews": return <Reviews b={b} data={data} />;
+    case "recent-posts": return <RecentPosts b={b} data={data} base={base} />;
     case "hero": {
       const img = b.props.image ?? headshot;
       const Cta = (
         <a href={anchorFor(b.props.ctaTarget)} className="site-btn mt-8 inline-block">{b.props.ctaLabel}</a>
       );
-      if (theme.heroStyle === "full-bleed" && img) {
+      if ((theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && img) {
         return (
           <div className="relative flex min-h-[78vh] items-end overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-black/40" />
             <div className="site-container relative pb-16 text-white">
               {b.props.eyebrow && <p className="mb-3 text-sm uppercase tracking-[0.2em] opacity-80">{b.props.eyebrow}</p>}
               <h1 className="site-heading max-w-3xl text-4xl leading-tight sm:text-6xl">{b.props.headline}</h1>
@@ -122,15 +139,20 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
           </div>
         </div>
       );
-    case "featured-listings":
+    case "featured-listings": {
+      const manual = listingsForBlock(data);
+      const items = manual.length
+        ? manual.map((l) => ({ image: l.photos[0], address: [l.address, l.city].filter(Boolean).join(", "), price: l.price ?? undefined, status: l.status, beds: l.beds ?? undefined, baths: l.baths ?? undefined, sqft: l.sqft ?? undefined, href: l.link_url ?? undefined }))
+        : b.props.items.map((l) => ({ ...l, href: undefined as string | undefined }));
       return (
         <div id="listings" className="py-16 md:py-24" style={{ background: "var(--surface)" }}>
           <div className="site-container">
             <h2 className="site-heading text-3xl sm:text-4xl">{b.props.headline}</h2>
             {b.props.intro && <p className="mt-3 max-w-2xl" style={{ color: "var(--muted)" }}>{b.props.intro}</p>}
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {b.props.items.map((l, i) => (
-                <article key={i} className="overflow-hidden" style={{ background: "var(--bg)", borderRadius: "var(--radius)" }}>
+              {items.map((l, i) => (
+                <article key={i} className="relative overflow-hidden" style={{ background: "var(--bg)", borderRadius: "var(--radius)" }}>
+                  {l.href && <a href={l.href} target="_blank" rel="noopener" className="absolute inset-0 z-10" aria-label={`View ${l.address}`} />}
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={l.image} alt={l.address} className="aspect-[4/3] w-full object-cover" />
@@ -150,12 +172,13 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
                 </article>
               ))}
             </div>
-            {b.props.items.length === 0 && (
-              <p className="mt-8 text-sm" style={{ color: "var(--muted)" }}>Listings will appear here once your MLS feed is connected.</p>
+            {items.length === 0 && (
+              <p className="mt-8 text-sm" style={{ color: "var(--muted)" }}>Featured properties are coming soon.</p>
             )}
           </div>
         </div>
       );
+    }
     case "neighborhoods":
       return (
         <div className="site-container py-16 md:py-24">
@@ -171,6 +194,9 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot }: {
         </div>
       );
     case "testimonials":
+      if (data.testimonials.length) {
+        return <Reviews b={{ type: "reviews", id: b.id, props: { headline: b.props.headline, mode: "featured" } }} data={data} />;
+      }
       return (
         <div className="py-16 md:py-24" style={{ background: "var(--surface)" }}>
           <div className="site-container">

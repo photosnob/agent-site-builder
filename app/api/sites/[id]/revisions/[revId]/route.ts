@@ -24,7 +24,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if ((rev.warnings as unknown[]).length > 0 && !body.data.acknowledgeWarnings) {
     return fail("Please review and confirm the flagged items first", 422, { warnings: rev.warnings });
   }
-  await admin.from("sites").update({ content: rev.content, theme: rev.theme }).eq("id", site.id);
+  if (rev.page_id) {
+    await admin.from("site_pages").update({ content: rev.content }).eq("id", rev.page_id).eq("site_id", site.id);
+    await admin.from("sites").update({ theme: rev.theme }).eq("id", site.id);
+  } else {
+    await admin.from("sites").update({ content: rev.content, theme: rev.theme }).eq("id", site.id);
+  }
   await admin.from("site_revisions").update({ status: "applied" }).eq("id", revId);
   await admin.from("ai_usage_events").update({ outcome: "applied" }).eq("revision_id", revId);
   return json({ ok: true });
