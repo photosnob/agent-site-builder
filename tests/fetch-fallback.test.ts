@@ -40,8 +40,23 @@ test("premium proxy is tried second; a bad key stops retries", async () => {
 
   seen.length = 0;
   globalThis.fetch = (async (input: URL | string) => { seen.push(String(input)); return new Response("", { status: String(input).includes("scrapingbee") ? 401 : 403 }); }) as typeof fetch;
-  await assert.rejects(fetchWithFallback(PUBLIC), SiteRefused);
+  await assert.rejects(fetchWithFallback("https://93.184.216.35/other/"), SiteRefused); // fresh host, no tier memory
   assert.equal(seen.length, 2);
+});
+
+test("a host that needed the scraper skips the direct request next time", async () => {
+  process.env.SCRAPINGBEE_API_KEY = "k";
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: URL | string) => {
+    const u = String(input); seen.push(u);
+    if (!u.includes("scrapingbee")) return new Response("", { status: 403 });
+    return new URL(u).searchParams.get("premium_proxy") ? new Response("ok", { status: 200 }) : new Response("", { status: 500 });
+  }) as typeof fetch;
+  await fetchWithFallback("https://93.184.216.36/a");
+  seen.length = 0;
+  await fetchWithFallback("https://93.184.216.36/b");
+  assert.equal(seen.length, 1);
+  assert.equal(new URL(seen[0]).searchParams.get("premium_proxy"), "true");
 });
 
 test("private addresses are never sent to the scraping service", async () => {

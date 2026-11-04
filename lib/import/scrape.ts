@@ -148,7 +148,9 @@ const Extracted = z.object({
 });
 
 export async function scrapeAgentSite(rawUrl: string, agentName: string, track?: { siteId?: string; userId?: string }): Promise<ScrapeResult> {
-  const start = await safeFetch(rawUrl);
+  // Stay inside the 60s function limit, leaving time for AI extraction.
+  const deadline = Date.now() + 38_000;
+  const start = await safeFetch(rawUrl, {}, undefined, deadline);
   const origin = new URL(start.url).origin;
   const pages = [{ url: start.url, html: start.body.toString("utf8") }];
   const notes: string[] = [];
@@ -159,8 +161,10 @@ export async function scrapeAgentSite(rawUrl: string, agentName: string, track?:
   const next = [...new Set(first.links)]
     .filter((l) => l.startsWith(origin) && wanted.test(new URL(l).pathname) && l !== start.url)
     .slice(0, 3);
-  for (const u of next) {
-    try { const r = await safeFetch(u); pages.push({ url: r.url, html: r.body.toString("utf8") }); } catch { /* skip */ }
+  // Fetch the extra pages in parallel, and only if there's time left.
+  if (deadline - Date.now() > 12_000) {
+    const extra = await Promise.allSettled(next.map((u) => safeFetch(u, {}, undefined, deadline)));
+    for (const r of extra) if (r.status === "fulfilled") pages.push({ url: r.value.url, html: r.value.body.toString("utf8") });
   }
 
   const parsed = pages.map((p, i) => (i === 0 ? first : parsePage(p.html, p.url, agentName)));

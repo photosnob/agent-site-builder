@@ -90,43 +90,102 @@ async function readCapped(res: Response, maxBytes: number) {
 
 export const scraperEnabled = () => Boolean(process.env.SCRAPINGBEE_API_KEY?.trim());
 
-/**
- * Fetches through ScrapingBee, which uses residential connections that agent-site
- * firewalls accept. Only used after a direct request is refused. Tries a standard
- * proxy first, then a premium one.
- */
-async function scraperFetch(url: URL, maxBytes: number) {
-  await assertPublic(url); // never let the service be pointed at private addresses
-  let lastStatus = 0;
-  for (const premium of [false, true]) {
-    const api = new URL("https://app.scrapingbee.com/api/v1/");
-    api.searchParams.set("api_key", process.env.SCRAPINGBEE_API_KEY!.trim());
-    api.searchParams.set("url", url.toString());
-    api.searchParams.set("render_js", "false");
-    if (premium) api.searchParams.set("premium_proxy", "true");
-    const res = await fetch(api, { signal: AbortSignal.timeout(45_000) });
-    lastStatus = res.status;
-    if (res.ok && res.body) {
-      const finalUrl = res.headers.get("spb-resolved-url") || url.toString();
-      return { url: finalUrl, contentType: res.headers.get("spb-content-type") || res.headers.get("content-type") || "", body: await readCapped(res, maxBytes) };
-    }
-    await res.body?.cancel();
-    if (res.status === 401 || res.status === 402) break; // bad key or out of credits: retrying won't help
+/** ScrapingBee tiers, cheapest first: standard (1 credit), premium (10), premium + real browser (25). */
+const TIERS = [
+  { name: "standard", params: {} as Record<string, string> },
+  { name: "premium", params: { premium_proxy: "true" } },
+  { name: "premium + browser", params: { premium_proxy: "true", render_js: "true", block_resources: "false" } },
+] as const;
+
+// Remember which tier worked per host for a while, so the other pages and
+// photos from the same site skip the tiers that are known to fail.
+const tierMemory = new Map<string, { tier: number; at: number }>();
+const rememberedTier = (host: string) => {
+  const m = tierMemory.get(host);
+  return m && Date.now() - m.at < 30 * 60_000 ? m.tier : 0;
+};
+
+export interface FetchStep { step: string; ok: boolean; status?: number; ms: number; note?: string }
+
+async function scraperAttempt(url: URL, tier: number, maxBytes: number, timeoutMs: number) {
+  const api = new URL("https://app.scrapingbee.com/api/v1/");
+  api.searchParams.set("api_key", process.env.SCRAPINGBEE_API_KEY!.trim());
+  api.searchParams.set("url", url.toString());
+  api.searchParams.set("render_js", "false");
+  for (const [k, v] of Object.entries(TIERS[tier].params)) api.searchParams.set(k, v);
+  const res = await fetch(api, { signal: AbortSignal.timeout(timeoutMs) });
+  if (res.ok && res.body) {
+    return {
+      ok: true as const,
+      status: res.status,
+      result: { url: res.headers.get("spb-resolved-url") || url.toString(), contentType: res.headers.get("spb-content-type") || res.headers.get("content-type") || "", body: await readCapped(res, maxBytes) },
+    };
   }
-  throw new SiteRefused(`Site refused the request, including via the scraping service (${lastStatus})`);
+  const note = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+  return { ok: false as const, status: res.status, note };
 }
+
+/**
+ * Fetches through ScrapingBee, which uses connections agent-site firewalls
+ * accept. Only used after a direct request is refused.
+ */
+async function scraperFetch(url: URL, maxBytes: number, steps?: FetchStep[], deadline = Date.now() + 50_000) {
+  await assertPublic(url); // never let the service be pointed at private addresses
+  let last = "";
+  for (let tier = rememberedTier(url.host); tier < TIERS.length; tier++) {
+    const remaining = deadline - Date.now();
+    if (remaining < 5_000) { last = "ran out of time"; break; }
+    const t = Date.now();
+    try {
+      const r = await scraperAttempt(url, tier, maxBytes, Math.min(remaining, tier === 2 ? 30_000 : 20_000));
+      steps?.push({ step: `ScrapingBee (${TIERS[tier].name})`, ok: r.ok, status: r.status, ms: Date.now() - t, note: r.ok ? undefined : r.note });
+      if (r.ok) { tierMemory.set(url.host, { tier, at: Date.now() }); return r.result; }
+      last = `${TIERS[tier].name}: ${r.status}${r.note ? ` ${r.note}` : ""}`;
+      if (r.status === 401 || r.status === 402) break; // bad key or out of credits: retrying won't help
+    } catch (e) {
+      steps?.push({ step: `ScrapingBee (${TIERS[tier].name})`, ok: false, ms: Date.now() - t, note: (e as Error).message });
+      last = `${TIERS[tier].name}: ${(e as Error).message}`;
+    }
+  }
+  throw new SiteRefused(`Site refused the request, including via the scraping service (${last})`);
+}
+
+const isRefusal = (e: unknown) =>
+  e instanceof SiteRefused || (e instanceof TypeError && /fetch failed/i.test(e.message)) || (e as Error)?.name === "TimeoutError";
 
 /**
  * The importer's fetch: direct first, then the scraping service if the site
  * blocks us (or drops the connection) and a key is configured.
  */
-export async function fetchWithFallback(input: string, opts: Parameters<typeof safeFetch>[1] = {}) {
+export async function fetchWithFallback(input: string, opts: Parameters<typeof safeFetch>[1] = {}, steps?: FetchStep[], deadline?: number) {
+  const url = new URL(input);
+  // Known-blocked host: go straight to the tier that worked.
+  if (scraperEnabled() && tierMemory.has(url.host) && rememberedTier(url.host) > 0) return scraperFetch(url, opts.maxBytes ?? 4_000_000, steps, deadline);
+  const t = Date.now();
   try {
-    return await safeFetch(input, opts);
+    const r = await safeFetch(input, opts);
+    steps?.push({ step: "Direct request", ok: true, status: 200, ms: Date.now() - t });
+    return r;
   } catch (e) {
-    const refused = e instanceof SiteRefused || (e instanceof TypeError && /fetch failed/i.test(e.message)) || (e as Error)?.name === "TimeoutError";
-    if (!refused || !scraperEnabled()) throw e instanceof SiteRefused || !refused ? e : new SiteRefused((e as Error).message);
+    steps?.push({ step: "Direct request", ok: false, ms: Date.now() - t, note: (e as Error).message });
+    if (!isRefusal(e)) throw e;
+    if (!scraperEnabled()) throw e instanceof SiteRefused ? e : new SiteRefused((e as Error).message);
     console.warn(`[import] direct fetch refused for ${input}; retrying via scraping service`);
-    return scraperFetch(new URL(input), opts.maxBytes ?? 4_000_000);
+    return scraperFetch(url, opts.maxBytes ?? 4_000_000, steps, deadline);
   }
+}
+
+/** Admin diagnostic: runs every step for one URL and reports what happened. */
+export async function diagnoseFetch(input: string) {
+  const steps: FetchStep[] = [];
+  const url = new URL(input);
+  tierMemory.delete(url.host);
+  let bytes = 0;
+  try {
+    const r = await fetchWithFallback(input, {}, steps);
+    bytes = r.body.length;
+  } catch (e) {
+    if (!steps.some((s) => s.note === (e as Error).message)) steps.push({ step: "Result", ok: false, ms: 0, note: (e as Error).message });
+  }
+  return { scraperConfigured: scraperEnabled(), steps, bytes };
 }

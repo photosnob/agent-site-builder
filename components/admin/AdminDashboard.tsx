@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { CATEGORY_LABEL, FEATURES, FEATURE_LABEL, type Report } from "@/lib/ai/report";
 import type { AiSettings } from "@/lib/ai/usageShared";
 import { AiCheck } from "./AiCheck";
+import { ScanCheck } from "./ScanCheck";
 
 // Categorical slots in fixed order (validated for colorblind separation).
 const SERIES_COLOR: Record<(typeof FEATURES)[number], string> = { edit: "#2a78d6", generate: "#eb6834", import_extract: "#1baf7a" };
@@ -37,6 +38,7 @@ export function AdminDashboard({ report, settings, model }: { report: Report; se
       </div>
 
       <AiCheck />
+      <ScanCheck />
 
       <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile label="Spent today" value={usd(k.todayCost)} sub={`${pct(Math.min(k.capPct, 9.99))} of ${usd(settings.globalDailySpendUsd)} daily cap`} warn={k.capPct >= 0.8} />
