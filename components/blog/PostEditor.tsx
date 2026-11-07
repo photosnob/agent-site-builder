@@ -8,6 +8,8 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import { looksLikeMarkdown, markdownToEditorHtml } from "@/lib/blog/markdownPaste";
 import { Figure } from "./figure";
+import { Video } from "./video";
+import { parseVideoUrl } from "@/lib/blog/video";
 import { prepareImage } from "@/components/manage/resize";
 import { IMAGE_SIZES, postSlug, type PostDoc } from "@/lib/blog/content";
 import type { Finding } from "@/lib/guardrails/fairHousing";
@@ -65,10 +67,11 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         link: { openOnClick: false, autolink: true, defaultProtocol: "https", HTMLAttributes: { rel: "noopener", target: null } },
       }),
       Figure,
+      Video,
       TableKit.configure({ table: { resizable: false, HTMLAttributes: { class: "editor-table" } } }),
       Placeholder.configure({
         includeChildren: true,
-        placeholder: ({ node }) => (node.type.name === "figure" ? "Add a caption (optional)" : "Start writing… Use the toolbar for headings and images."),
+        placeholder: ({ node }) => (node.type.name === "figure" || node.type.name === "video" ? "Add a caption (optional)" : "Start writing… Use the toolbar for headings and images."),
       }),
     ],
     content: initial.content,
@@ -79,6 +82,13 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
       handlePaste: (_view, event) => {
         const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
         if (!files.length) {
+          // A YouTube/Vimeo link pasted on its own becomes an embedded video.
+          const pasted = (event.clipboardData?.getData("text/plain") ?? "").trim();
+          const video = !/\s/.test(pasted) ? parseVideoUrl(pasted) : null;
+          if (video) {
+            editorRef.current?.chain().focus().insertVideo(video).run();
+            return true;
+          }
           // Markdown pasted as plain text (e.g. ChatGPT's copy button) → formatted content.
           const html = event.clipboardData?.getData("text/html");
           const text = event.clipboardData?.getData("text/plain") ?? "";
@@ -311,6 +321,7 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
       ordered: e.isActive("orderedList"),
       quote: e.isActive("blockquote"),
       figure: e.isActive("figure"),
+      video: e.isActive("video"),
       table: e.isActive("table"),
       size: (e.getAttributes("figure").size as string | undefined) ?? "large",
       alt: (e.getAttributes("figure").alt as string | undefined) ?? "",
@@ -319,6 +330,15 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
     }),
   });
   const [linkOpen, setLinkOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const applyVideo = () => {
+    const v = parseVideoUrl(videoUrl);
+    if (!v) { setVideoError("Paste a YouTube or Vimeo link, like https://www.youtube.com/watch?v=…"); return; }
+    c().insertVideo(v).run();
+    setVideoOpen(false); setVideoUrl(""); setVideoError(null);
+  };
   const [href, setHref] = useState("");
   const c = () => editor.chain().focus();
 
@@ -349,6 +369,7 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
         <TB onClick={() => c().setHorizontalRule().run()} title="Divider">—</TB>
         <Sep />
         <TB onClick={onPickImage} title="Insert image (or paste / drag one in)">Image</TB>
+        <TB active={videoOpen} onClick={() => { setVideoOpen((o) => !o); setVideoError(null); }} title="Insert a YouTube or Vimeo video (or paste the link into the post)">Video</TB>
         <TB active={s.table} onClick={() => c().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert table">Table</TB>
         <Sep />
         <TB disabled={!s.canUndo} onClick={() => c().undo().run()} title="Undo">↶</TB>
@@ -360,6 +381,26 @@ function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => v
           <input autoFocus className="input !py-1.5" placeholder="https://… (leave empty to remove)" value={href}
             onChange={(e) => setHref(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyLink(); } if (e.key === "Escape") setLinkOpen(false); }} />
           <button className="btn !py-1.5" onClick={applyLink}>Apply</button>
+        </div>
+      )}
+
+      {videoOpen && (
+        <div className="mt-1.5 border-t border-stone-100 px-1 pt-1.5">
+          <div className="flex gap-2">
+            <input autoFocus className="input !py-1.5" placeholder="YouTube or Vimeo link, e.g. https://youtu.be/…" value={videoUrl}
+              onChange={(e) => { setVideoUrl(e.target.value); setVideoError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyVideo(); } if (e.key === "Escape") setVideoOpen(false); }} />
+            <button className="btn !py-1.5" onClick={applyVideo}>Insert</button>
+          </div>
+          {videoError && <p className="mt-1 text-xs text-red-600">{videoError}</p>}
+        </div>
+      )}
+
+      {s.video && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 border-t border-stone-100 px-1 pt-1.5 text-sm">
+          <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">Video</span>
+          <span className="text-xs text-stone-500">Type below the video to add a caption.</span>
+          <TB onClick={() => c().removeVideo().run()} title="Remove video">Remove</TB>
         </div>
       )}
 

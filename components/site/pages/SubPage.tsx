@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { redirectOrNotFound } from "@/lib/redirects.server";
 import type { Metadata } from "next";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -34,7 +34,7 @@ export async function subPageMetadata(slug: string, pageSlug: string): Promise<M
 
 export async function SubPage({ slug, pageSlug, hosted }: { slug: string; pageSlug: string; hosted: boolean }) {
   const r = await load(slug, pageSlug);
-  if (!r) notFound();
+  if (!r) return redirectOrNotFound(slug, `/${pageSlug}`, hosted);
   const { site, page } = r;
   const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
   const origin = canonicalOrigin(slug);

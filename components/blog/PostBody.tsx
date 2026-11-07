@@ -1,5 +1,7 @@
 import { Fragment } from "react";
 import { buildToc, type DocNode } from "@/lib/blog/content";
+import type { VideoRef } from "@/lib/blog/video";
+import { VideoEmbed } from "./VideoEmbed";
 
 /**
  * Renders validated post JSON to React. Only known node and mark types are
@@ -71,6 +73,17 @@ function Node({ node: n, id }: { node: DocNode; id?: string }): React.ReactNode 
         <figure className="post-figure" data-size={(n.attrs?.size as string) || "large"}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={String(n.attrs?.src)} alt={String(n.attrs?.alt ?? "")} loading="lazy" />
+          {caption && <figcaption>{kids()}</figcaption>}
+        </figure>
+      );
+    }
+    case "video": {
+      const a = n.attrs ?? {};
+      const ref: VideoRef = { provider: a.provider === "vimeo" ? "vimeo" : "youtube", videoId: String(a.videoId), start: Number(a.start) || undefined, hash: (a.hash as string) || undefined };
+      const caption = (n.content ?? []).length > 0;
+      return (
+        <figure className="post-video" data-vertical={a.vertical ? "" : undefined}>
+          <VideoEmbed video={ref} title={caption ? (n.content ?? []).map((c) => c.text ?? "").join("") : "Video"} />
           {caption && <figcaption>{kids()}</figcaption>}
         </figure>
       );

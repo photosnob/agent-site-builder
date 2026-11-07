@@ -6,6 +6,7 @@ const LINKS = [
   { href: "/dashboard/reviews", label: "Reviews" },
   { href: "/dashboard/team", label: "Team" },
   { href: "/dashboard/blog", label: "Blog" },
+  { href: "/dashboard/redirects", label: "Redirects" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 

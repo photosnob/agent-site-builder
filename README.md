@@ -17,7 +17,7 @@ signup → profile → market → import (scan site → confirm picks) → templ
 
 ### Blog
 
-Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, built on Tiptap): H2–H4 headings, bold/italic/underline/strike, links, lists, quotes, dividers, and images (upload, paste or drag in) with S/M/L/Full size presets, captions and alt text. Posts are stored as validated editor JSON (`lib/blog/content.ts`), never HTML, and rendered by our own renderer (`components/blog/PostBody.tsx`). Post images must come from the site's own storage. The post title is the page's only H1. Each post gets a table of contents built from its headings: a sticky sidebar with section highlighting on desktop, and a collapsible box on mobile. It can be turned off per post. Publishing runs the Fair Housing lint and adds BlogPosting structured data, a canonical URL and Open Graph tags.
+Agents write posts in a rich-text editor (`components/blog/PostEditor.tsx`, built on Tiptap): H2–H4 headings, bold/italic/underline/strike, links, lists, quotes, dividers, and images (upload, paste or drag in) with S/M/L/Full size presets, captions and alt text. Posts are stored as validated editor JSON (`lib/blog/content.ts`), never HTML, and rendered by our own renderer (`components/blog/PostBody.tsx`). Post images must come from the site's own storage. The post title is the page's only H1. Paste a YouTube or Vimeo link on its own line (or use the Video button) to embed it. Only the provider and video id are stored; posts load a thumbnail and fetch the player on click (privacy-enhanced youtube-nocookie / Vimeo dnt). Each post gets a table of contents built from its headings: a sticky sidebar with section highlighting on desktop, and a collapsible box on mobile. It can be turned off per post. Publishing runs the Fair Housing lint and adds BlogPosting structured data, a canonical URL and Open Graph tags.
 
 Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served from `app/h/[slug]` via `proxy.ts`.
 
@@ -34,6 +34,10 @@ Besides the home page, each site gets **Buy**, **Sell** (a seller's guide), **Me
 - **Hero styles** (editor → Hero style): Photo, Split, Centered, **Video** (full-screen looping MP4/WebM up to 50 MB, uploaded straight to storage with a signed URL, with a still image for reduced-motion visitors) and **Slideshow** (2–8 crossfading photos). Video and slideshow use a centered, uppercase luxury layout with an overlaid header, two buttons, the license line and a stats bar from the agent's claims.
 - **Stock video library:** upload licensed clips to `site-assets/stock/` in Supabase Storage (optional same-name `.jpg` poster) and they appear for every agent.
 - **Instagram** (Settings): Business Login for Instagram (`instagram_business_basic`). Tokens are encrypted (AES-GCM, `TOKEN_ENCRYPTION_KEY`) and refreshed before they expire. Posts are cached for an hour, and the home section shows the 3 latest. Serving agents' accounts beyond your own requires Meta's Advanced Access (App Review).
+
+### Redirects from the agent's old site
+
+`/dashboard/redirects`: the agent scans their old site (sitemap via robots.txt, sitemap_index.xml, wp-sitemap.xml; home page links as a fallback; limited to the folder entered, so an agent page on a brokerage site doesn't pull in the brokerage) and each old URL gets a suggested destination (`lib/redirects.ts`: matching post slug, page/section keywords, similar post titles; otherwise home/blog, flagged "Needs a look"). They can edit any row, add one, or paste a list. Redirects are only looked up where the site would otherwise 404 (`redirectOrNotFound`, plus the `[...path]` catch-all for deeper old URLs), so they cost nothing for normal page views; changes revalidate just the affected paths. They take effect once the old domain points at this app, which needs custom domains (see below).
 
 ### Email
 
@@ -71,7 +75,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`, `0007_redirects.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash

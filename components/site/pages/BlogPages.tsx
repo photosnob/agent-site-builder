@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { redirectOrNotFound } from "@/lib/redirects.server";
 import type { Metadata } from "next";
 import { SiteShell } from "@/components/site/SiteShell";
 import { PostBody } from "@/components/blog/PostBody";
@@ -112,7 +113,7 @@ export async function blogPostMetadata(slug: string, postSlug: string, hosted: b
 export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; postSlug: string; hosted: boolean }) {
   const site = await loadSite(slug);
   const post = await getPublishedPost(site.id, postSlug);
-  if (!post) notFound();
+  if (!post) return redirectOrNotFound(slug, `/blog/${postSlug}`, hosted);
   const base = basePath(slug, hosted);
   const toc = post.show_toc ? buildToc(post.content) : [];
   const showToc = toc.length >= 2;

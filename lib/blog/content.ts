@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VIMEO_HASH, VIMEO_ID, YT_ID } from "./video";
 
 /**
  * Blog posts are stored as editor JSON, never HTML. This schema is the
@@ -67,6 +68,19 @@ const Block: z.ZodType<DocNode> = z.lazy(() =>
       }),
       content: inlineContent, // the caption
     }),
+    z.object({
+      type: z.literal("video"),
+      attrs: z
+        .object({
+          provider: z.enum(["youtube", "vimeo"]),
+          videoId: z.string(),
+          start: z.number().int().min(0).max(86_400).nullable().optional(),
+          hash: z.string().regex(VIMEO_HASH).nullable().optional(),
+          vertical: z.boolean().nullable().optional(),
+        })
+        .refine((a) => (a.provider === "youtube" ? YT_ID : VIMEO_ID).test(a.videoId), "Not a valid video"),
+      content: inlineContent, // the caption
+    }),
   ]) as z.ZodType<DocNode>,
 );
 
@@ -114,6 +128,12 @@ export function imagesInDoc(doc: DocNode): string[] {
   return out;
 }
 
+export function videosInDoc(doc: DocNode) {
+  const out: { provider: "youtube" | "vimeo"; videoId: string; caption: string }[] = [];
+  walk(doc, (n) => { if (n.type === "video" && n.attrs) out.push({ provider: n.attrs.provider as "youtube" | "vimeo", videoId: String(n.attrs.videoId), caption: textOf(n) }); });
+  return out;
+}
+
 export function textOf(node: DocNode): string {
   if (node.type === "text") return node.text ?? "";
   return (node.content ?? []).map(textOf).join(node.type === "doc" ? "\n" : "");
@@ -123,7 +143,7 @@ export function textOf(node: DocNode): string {
 export function plainText(doc: DocNode): string {
   const lines: string[] = [];
   // Paragraphs inside list items and table cells are visited too.
-  walk(doc, (n) => { if (["paragraph", "heading", "figure"].includes(n.type)) lines.push(textOf(n)); });
+  walk(doc, (n) => { if (["paragraph", "heading", "figure", "video"].includes(n.type)) lines.push(textOf(n)); });
   return lines.filter(Boolean).join("\n");
 }
 
