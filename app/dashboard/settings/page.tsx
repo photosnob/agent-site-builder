@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getAssets } from "@/lib/sites";
@@ -31,12 +32,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const seo = parsed.success ? parsed.data : {};
   const content = site.published_content ?? site.content;
   const origin = canonicalOrigin(site.slug);
-  const [assets, posts, igRow, igPosts] = await Promise.all([
+  const [assets, posts, igRow, igPosts, redirects] = await Promise.all([
     getAssets(site.id),
     getPublishedPosts(site.id, 1000),
     createAdminClient().from("instagram_connections").select("username, expires_at, last_error").eq("site_id", site.id).maybeSingle().then((r) => r.data, () => null),
     getInstagramPosts(site.id).catch(() => null),
+    supabase.from("site_redirects").select("needs_review").eq("site_id", site.id).then((r) => (r.error ? null : r.data ?? []), () => null),
   ]);
+  const needsLook = redirects?.filter((r) => r.needs_review).length ?? 0;
   const generatedLlms = llmsTxt({ slug: site.slug, origin, agent: site.agent, content, seo: { ...seo, llmsTxt: undefined }, publishedAt: site.published_at }, posts);
 
   return (
@@ -66,6 +69,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           bioPlaceholder={briefBio((() => { const a = content?.blocks.find((b) => b.type === "about"); return a?.type === "about" ? a.props.body : site.agent.bio; })()) || "e.g. Jane helps buyers and sellers across Willow Glen with a calm, clear process."}
         />
       </div>
+      <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-5">
+        <div>
+          <h2 className="font-semibold">Redirects</h2>
+          <p className="mt-1 max-w-xl text-sm text-stone-500">
+            Send visitors and Google from your old website&apos;s pages to the right pages here, so you keep your rankings.{" "}
+            {redirects === null ? "Needs the 0007 database migration." : redirects.length ? `${redirects.length} set up${needsLook ? `, ${needsLook} need a look` : ""}.` : "None yet."}
+          </p>
+        </div>
+        <Link href="/dashboard/redirects" className="btn-ghost">Manage redirects</Link>
+      </section>
       <SeoSettings
         siteId={site.id}
         live={site.status === "live"}
