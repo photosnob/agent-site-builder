@@ -77,7 +77,7 @@ export const NeighborhoodsBlock = z.object({
   id: blockId,
   props: z.object({
     headline: plain(90),
-    items: z.array(z.object({ name: plain(60), blurb: plain(320) })).min(1).max(8),
+    items: z.array(z.object({ name: plain(60), blurb: plain(320), image: imageRef.optional() })).min(1).max(8),
   }),
 });
 
@@ -106,6 +106,8 @@ export const CtaBlock = z.object({
     body: plain(300),
     buttonLabel: plain(30),
     target: z.enum(CTA_TARGETS),
+    /** Optional background photo (used by the photo-band looks). */
+    image: imageRef.optional(),
   }),
 });
 
@@ -254,7 +256,8 @@ export type AnyContent = SiteContent | PageContent;
 export function imagesIn(content: { blocks: Block[] }): string[] {
   const out: string[] = [];
   for (const b of content.blocks) {
-    if ((b.type === "hero" || b.type === "about" || b.type === "page-header") && b.props.image) out.push(b.props.image);
+    if ((b.type === "hero" || b.type === "about" || b.type === "page-header" || b.type === "cta") && b.props.image) out.push(b.props.image);
+    if (b.type === "neighborhoods") b.props.items.forEach((i) => i.image && out.push(i.image));
     if (b.type === "hero") { b.props.slides?.forEach((u) => out.push(u)); if (b.props.videoUrl) out.push(b.props.videoUrl); }
     if (b.type === "featured-listings") b.props.items.forEach((i) => out.push(i.image));
   }

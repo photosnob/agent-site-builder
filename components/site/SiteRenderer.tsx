@@ -7,6 +7,7 @@ import type { AgentProfile } from "@/lib/types";
 import { LeadForm } from "./LeadForm";
 import { HeroSlideshow } from "./HeroSlideshow";
 import { SiteShell } from "./SiteShell";
+import { LookBlock, heroHasMedia } from "./looks";
 
 type Agent = Partial<AgentProfile>;
 
@@ -47,6 +48,14 @@ export function SiteRenderer({
   logo?: string;
 }) {
   const blocks = content.blocks;
+  const look = theme.look ?? "classic";
+  const first = blocks[0]?.type === "hero" ? blocks[0] : null;
+  const overlay = look === "classic"
+    ? Boolean(first && (
+        (theme.heroStyle === "video" && Boolean(first.props.videoUrl)) ||
+        (theme.heroStyle === "slideshow" && (first.props.slides?.length ?? 0) > 0) ||
+        ((theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && Boolean(first.props.image || headshot))))
+    : look !== "bright" && Boolean(first && heroHasMedia(first.props, theme, headshot));
   return (
     <SiteShell
       theme={theme}
@@ -56,16 +65,13 @@ export function SiteRenderer({
       blogHref={blogHref}
       nav={data.nav}
       logo={logo}
-      overlayHeader={blocks[0]?.type === "hero" && (
-        (theme.heroStyle === "video" && Boolean(blocks[0].props.videoUrl)) ||
-        (theme.heroStyle === "slideshow" && (blocks[0].props.slides?.length ?? 0) > 0) ||
-        ((theme.heroStyle === "full-bleed" || theme.heroStyle === "video" || theme.heroStyle === "slideshow") && Boolean(blocks[0].props.image || headshot))
-      )}
+      overlayHeader={overlay}
       sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
     >
       {blocks.map((b) => (
         <section key={b.id} data-block-id={b.id} data-block-type={b.type}>
-          <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} data={data} base={base} />
+          {(look !== "classic" && <LookBlock block={b} ctx={{ look, theme, agent, siteId, interactive, headshot, data }} />) ||
+            <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} data={data} base={base} />}
         </section>
       ))}
     </SiteShell>

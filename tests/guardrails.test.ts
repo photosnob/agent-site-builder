@@ -15,7 +15,7 @@ const content: SiteContent = {
 
 const ctx: GuardContext = {
   content,
-  theme: { palette: "teak", fonts: "geometric", radius: "round", heroStyle: "centered" },
+  theme: { palette: "teak", fonts: "geometric", radius: "round", heroStyle: "centered", look: "classic" },
   allowedPalettes: ["teak", "atomic", "forest", "ink"],
   assets: [{ id: "a1", kind: "headshot", url: "https://x.supabase.co/storage/v1/object/public/site-assets/s/1.jpg", meta: {} }],
   knownFacts: "Theresa Lee\n12 years\nWillow Glen",

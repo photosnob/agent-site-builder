@@ -16,7 +16,7 @@ const textPath = z
 
 export const EditOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("set_text"), blockId: z.string(), path: textPath, value: z.string().max(1400) }),
-  z.object({ op: z.literal("set_image"), blockId: z.string(), assetId: z.string() }),
+  z.object({ op: z.literal("set_image"), blockId: z.string(), assetId: z.string(), itemIndex: z.number().int().min(0).max(7).optional().describe("Neighborhoods only: which area gets the photo (0-based)") }),
   z.object({ op: z.literal("set_image_size"), blockId: z.string(), size: z.enum(IMAGE_SIZES) }),
   z.object({ op: z.literal("add_block"), type: z.enum(BLOCK_TYPES), afterBlockId: z.string(), props: z.record(z.string(), z.unknown()) }),
   z.object({ op: z.literal("remove_block"), blockId: z.string() }),
@@ -131,7 +131,13 @@ export function applyEditPlan(plan: EditPlan, ctx: GuardContext): GuardResult {
         const idx = find(op.blockId);
         const asset = assetById.get(op.assetId);
         if (idx < 0 || !asset) { at("unknown block or image"); break; }
-        if (!["hero", "about", "page-header"].includes(blocks[idx].type as string)) { at("this block has no main image"); break; }
+        if (blocks[idx].type === "neighborhoods") {
+          const items = (blocks[idx].props as { items: Record<string, unknown>[] }).items;
+          if (op.itemIndex === undefined || !items[op.itemIndex]) { at("say which neighborhood gets the photo"); break; }
+          items[op.itemIndex].image = asset.url;
+          break;
+        }
+        if (!["hero", "about", "page-header", "cta"].includes(blocks[idx].type as string)) { at("this block has no main image"); break; }
         (blocks[idx].props as Record<string, unknown>).image = asset.url;
         break;
       }

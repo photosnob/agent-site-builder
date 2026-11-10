@@ -34,6 +34,56 @@ body {
   font-weight: 600;
 }
 
+.site-root .site-btn-ghost {
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  padding: 0.8rem 1.5rem;
+  font-weight: 600;
+}
+
+/* ---------- Looks: template-level styling on top of the theme tokens ---------- */
+.site-root[data-look] .site-container { max-width: 80rem; padding-inline: 1.5rem; }
+@media (min-width: 1024px) { .site-root[data-look] .site-container { padding-inline: 2.5rem; } }
+
+/* Noir: light geometric sans, outlined uppercase buttons */
+.site-root[data-look="noir"] .site-heading { font-weight: 300; letter-spacing: 0.005em; }
+.site-root[data-look="noir"] .site-btn,
+.site-root[data-look="noir"] .site-btn-ghost {
+  background: transparent; color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 55%, transparent);
+  border-radius: 0; text-transform: uppercase; letter-spacing: 0.22em; font-size: 0.7rem; font-weight: 500; padding: 1rem 1.75rem;
+}
+.site-root[data-look="noir"] .site-btn:hover { background: var(--text); color: var(--bg); }
+
+/* Riviera: airy serif, solid near-black buttons with tracked caps */
+.site-root[data-look="riviera"] .site-heading { font-weight: 400; letter-spacing: -0.005em; }
+.site-root[data-look="riviera"] .site-btn {
+  border-radius: 0; text-transform: uppercase; letter-spacing: 0.26em; font-size: 0.7rem; font-weight: 600; padding: 1.05rem 2rem;
+}
+.site-root[data-look="riviera"] .site-btn-ghost { border-radius: 0; text-transform: uppercase; letter-spacing: 0.26em; font-size: 0.7rem; }
+
+/* Bright: bold tight sans, pill buttons */
+.site-root[data-look="bright"] .site-heading { font-weight: 600; letter-spacing: -0.03em; }
+.site-root[data-look="bright"] .site-btn,
+.site-root[data-look="bright"] .site-btn-ghost { border-radius: 999px; padding: 0.85rem 1.5rem; font-weight: 600; }
+
+/* Form fields stay visible on dark looks and dark bands */
+.site-root[data-look] form input, .site-root[data-look] form textarea {
+  border-color: color-mix(in srgb, var(--text) 22%, transparent) !important;
+  background: transparent !important;
+}
+.site-root[data-look] form input::placeholder, .site-root[data-look] form textarea::placeholder { color: var(--muted); }
+
+/* Noir listing rail: starts aligned with the page, scrolls to the edge */
+.site-root .look-rail {
+  padding-inline: max(1.5rem, calc((100vw - 80rem) / 2 + 2.5rem));
+  scroll-padding-inline: max(1.5rem, calc((100vw - 80rem) / 2 + 2.5rem));
+  scrollbar-width: thin;
+}
+.site-root .look-parallax { background-size: cover; background-position: center; }
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .site-root .look-parallax { background-attachment: fixed; }
+}
+
 /* App UI */
 .btn {
   @apply inline-flex items-center justify-center rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-700 disabled:opacity-50;

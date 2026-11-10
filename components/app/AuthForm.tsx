@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BRAND, BrandFonts, Logo } from "@/components/marketing/Brand";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -37,12 +38,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="text-2xl font-bold">{mode === "signup" ? "Create your account" : "Welcome back"}</h1>
+    <div className="min-h-screen" style={{ background: BRAND.ivory, color: BRAND.evergreen, fontFamily: BRAND.sans }}>
+    <BrandFonts />
+    <header className="px-6 py-5"><Link href="/" aria-label="Launch and List home"><Logo size={22} /></Link></header>
+    <main className="mx-auto flex min-h-[calc(100vh-88px)] max-w-sm flex-col justify-center px-6 pb-20">
+      <h1 className="text-[2.6rem] leading-none" style={{ fontFamily: BRAND.serif, fontWeight: 500 }}>{mode === "signup" ? <>Launch your site<span style={{ color: BRAND.brass }}>.</span></> : <>Welcome back<span style={{ color: BRAND.brass }}>.</span></>}</h1>
+      {mode === "signup" && <p className="mt-3 text-[15px]" style={{ color: BRAND.ink }}>Create your account. Next, a few questions about your market.</p>}
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
           <label className="label" htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" required className="input" autoComplete="email" />
+          <input id="email" name="email" type="email" required className="input" autoComplete="email" defaultValue={params.get("email") ?? ""} />
         </div>
         <div>
           <div className="flex items-baseline justify-between">
@@ -53,11 +58,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-700">{notice}</p>}
-        <button className="btn w-full" disabled={busy}>{busy ? "…" : mode === "signup" ? "Create account" : "Sign in"}</button>
+        <button className="w-full rounded-[2px] px-4 py-3 text-[15px] font-bold disabled:opacity-60" style={{ background: mode === "signup" ? BRAND.brass : BRAND.evergreen, color: mode === "signup" ? BRAND.evergreen : BRAND.ivory }} disabled={busy}>{busy ? "…" : mode === "signup" ? "create my account." : "sign in."}</button>
       </form>
       <p className="mt-6 text-sm text-stone-500">
         {mode === "signup" ? <>Already have an account? <Link className="underline" href="/login">Sign in</Link></> : <>New here? <Link className="underline" href="/signup">Create an account</Link></>}
       </p>
     </main>
+    </div>
   );
 }

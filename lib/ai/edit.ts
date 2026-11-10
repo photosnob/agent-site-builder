@@ -37,6 +37,7 @@ export async function planAndApplyEdit(input: {
       "- Fair Housing: describe properties and places, never who should live there. No race, religion, national origin, sex, disability, familial status, or school-quality claims.",
       "- Paths for set_text are relative to props, e.g. 'headline' or 'items.1.blurb'.",
       "- add_block: put the new section's fields in propsJson as a JSON object string, matching that block type's fields as used elsewhere on the page. set_list_item: put the item in itemJson as a JSON object string.",
+      "- set_image works on the hero, About, page header, call-to-action (a background photo) and each neighborhood (pass itemIndex).",
       "- The About section photo can be resized with set_image_size: small, medium or large (default large). \"Smaller\" from large means medium; from medium means small. Other images can't be resized.",
       `- Style options: palette one of ${t.allowedPalettes.join(", ")}; fonts one of ${Object.keys(FONT_PAIRS).join(", ")}; radius none|soft|round; heroStyle full-bleed|split|centered.`,
       "- summary: one or two plain sentences telling the agent what will change.",

@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PALETTES } from "@/lib/blocks/theme";
 import { TEMPLATE_LIST, type TemplateId } from "@/lib/templates";
+import { TemplateThumb } from "./TemplateThumb";
 import type { ScrapeResult } from "@/lib/import/scrape";
 import type { SiteAsset, SiteRow } from "@/lib/types";
 import { prepareImage } from "@/components/manage/resize";
@@ -151,21 +151,16 @@ export function Onboarding({ site, email, initialAssets }: { site: SiteRow | nul
           <h1 className="text-3xl font-bold">Pick a design</h1>
           <p className="mt-2 text-stone-600">You can switch colors and fonts later by asking.</p>
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            {TEMPLATE_LIST.map((t) => {
-              const p = PALETTES[t.theme.palette];
-              return (
-                <button key={t.id} disabled={busy} onClick={() => run(async () => { await api(`/api/sites/${siteId}`, "PATCH", { template: t.id as TemplateId, onboardingStep: 5 }); setStep(5); })}
-                  className="overflow-hidden rounded-xl border border-stone-200 bg-white text-left hover:border-stone-900">
-                  <div className="flex h-28 items-end gap-1 p-3" style={{ background: p.bg }}>
-                    {[p.accent, p.surface, p.text, p.muted].map((c) => <span key={c} className="h-8 w-8 rounded" style={{ background: c }} />)}
-                  </div>
-                  <div className="p-4">
-                    <p className="font-semibold">{t.name}</p>
-                    <p className="mt-1 text-sm text-stone-500">{t.description}</p>
-                  </div>
-                </button>
-              );
-            })}
+            {TEMPLATE_LIST.map((t) => (
+              <button key={t.id} disabled={busy} onClick={() => run(async () => { await api(`/api/sites/${siteId}`, "PATCH", { template: t.id as TemplateId, onboardingStep: 5 }); setStep(5); })}
+                className="overflow-hidden rounded-xl border border-stone-200 bg-white text-left hover:border-stone-900">
+                <TemplateThumb t={t} />
+                <div className="p-4">
+                  <p className="font-semibold">{t.name}</p>
+                  <p className="mt-1 text-sm text-stone-500">{t.description}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
       )}

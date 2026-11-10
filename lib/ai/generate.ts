@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SiteContent, newBlockId, type Block } from "../blocks/schema";
 import { lintClaims, lintFairHousing, type Finding } from "../guardrails/fairHousing";
 import { TEMPLATES, type TemplateId } from "../templates";
+import { listStockVideos } from "../media";
 import type { AgentProfile, ImportData, SiteAsset } from "../types";
 import { aiEnabled, callStructured, untrusted } from "./claude";
 import type { TrackInfo } from "./usage";
@@ -114,6 +115,8 @@ export async function generateSite(input: {
   const headshot = assets.find((a) => a.kind === "headshot")?.url;
   const listings = assets.filter((a) => a.kind === "listing").slice(0, 9);
   const testimonials = (imported?.testimonials ?? []).slice(0, 4);
+  // Video templates start on the first stock clip so they look finished before the agent uploads their own.
+  const stockVideo = TEMPLATES[templateId].theme.heroStyle === "video" ? (await listStockVideos().catch(() => []))[0]?.url : undefined;
 
   const build: Record<string, () => Block | null> = {
     hero: () => ({
@@ -124,7 +127,8 @@ export async function generateSite(input: {
         subheadline: safe(copy.hero.subheadline, fallback.hero.subheadline),
         ctaLabel: copy.hero.ctaLabel || "Let's talk",
         ctaTarget: "contact",
-        image: templateId === "estate" ? (listings[0]?.url ?? headshot) : headshot,
+        image: ["estate", "noir", "riviera", "bright"].includes(templateId) ? (listings[0]?.url ?? headshot) : headshot,
+        ...(TEMPLATES[templateId].theme.heroStyle === "video" && stockVideo ? { videoUrl: stockVideo, videoSpeed: 0.75 } : {}),
       },
     }),
     about: () => ({
@@ -161,7 +165,11 @@ export async function generateSite(input: {
     },
     cta: () => ({
       type: "cta", id: newBlockId("cta"),
-      props: { headline: safe(copy.cta.headline, fallback.cta.headline), body: safe(copy.cta.body, fallback.cta.body), buttonLabel: copy.cta.buttonLabel || "Get my home value", target: "valuation" },
+      props: {
+        headline: safe(copy.cta.headline, fallback.cta.headline), body: safe(copy.cta.body, fallback.cta.body), buttonLabel: copy.cta.buttonLabel || "Get my home value", target: "valuation",
+        // Photo-band looks use a second listing photo behind the call to action.
+        ...(TEMPLATES[templateId].theme.look !== "classic" && (listings[1] ?? listings[0]) ? { image: (listings[1] ?? listings[0]).url } : {}),
+      },
     }),
     contact: () => ({
       type: "contact", id: newBlockId("contact"),

@@ -1,4 +1,4 @@
-# Agent Site Builder (MVP)
+# Launch & List (MVP)
 
 A real estate agent signs up, answers a few questions, imports their headshot, listings, bio and testimonials from their current site, picks a design, and gets a generated site. They can then edit it with plain-English prompts, inside guardrails.
 
@@ -28,6 +28,10 @@ Besides the home page, each site gets **Buy**, **Sell** (a seller's guide), **Me
 - **Reviews** (`/dashboard/reviews`): curate, hide, reorder and star reviews. Starred ones show on the home page, and all visible ones on Success Stories. Imported testimonials are copied in the first time.
 - **Team** (`/dashboard/team`): team members after the agent.
 - **Logo** (Settings): solid backgrounds are removed in the browser (`lib/logo.ts`), previewed, then uploaded as a trimmed PNG.
+
+### Templates and looks
+
+Six templates (`lib/templates.ts`). Modern, Estate and Mid-Century use the classic block layouts. **Noir** (dark, light Montserrat, video hero, scrolling listings rail, full-height neighborhood photos), **Riviera** (dark film hero with tall serif type opening into a light gallery page, photo band, dark enquiry section) and **Bright** (white, bold Instrument Sans, two-tone headlines, pill buttons, rounded photos) set `theme.look`, which switches header, hero and section layouts (`components/site/looks.tsx`, `LookMenu.tsx`, look rules in `globals.css`). Looks are set by the template, never by prompts. Neighborhoods and call-to-action sections take optional photos from the agent's library (`set_image`, with `itemIndex` for a neighborhood). Video templates start on the first stock clip at 0.75× speed.
 
 ### Hero styles and Instagram
 
@@ -75,7 +79,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`, `0007_redirects.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`, `0007_redirects.sql`, `0008_more_templates.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash
