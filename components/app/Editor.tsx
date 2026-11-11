@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import type { Finding } from "@/lib/guardrails/fairHousing";
 import { DashNav } from "./DashNav";
 import { HeroPanel, type HeroState } from "./HeroPanel";
+import { TemplatePanel } from "./TemplatePanel";
+import type { TemplateId } from "@/lib/templates";
 
 type PageRef = { id: string; slug: string; title: string; enabled: boolean };
 
@@ -23,6 +25,7 @@ export function Editor(props: {
   siteId: string; slug: string; status: string; liveUrl: string; publishedAt: string | null;
   aiReady: boolean; revisions: Rev[]; leads: Lead[]; editsLeft: number; editsLimit: number;
   pages: PageRef[];
+  template: TemplateId | null;
   hero: HeroState;
   assets: { id: string; url: string; kind: string; meta: { type?: string } }[];
 }) {
@@ -87,7 +90,8 @@ export function Editor(props: {
             {error && <p className="mb-3 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <PagePicker pages={props.pages} value={pageId} disabled={!!proposal || !!busy} siteId={props.siteId}
               onChange={(id) => { setPageId(id); setPreviewKey((k) => k + 1); }} onChanged={() => router.refresh()} />
-            {!pageId && tab === "edit" && <HeroPanel siteId={props.siteId} initial={props.hero} assets={props.assets} openSignal={heroOpen} onSaved={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
+            {!pageId && tab === "edit" && <TemplatePanel siteId={props.siteId} current={props.template} onSwitched={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
+            {!pageId && tab === "edit" && <HeroPanel key={`${props.template}-${props.hero.style}`} siteId={props.siteId} initial={props.hero} assets={props.assets} openSignal={heroOpen} onSaved={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
 
             {tab === "edit" && (
               <div className="space-y-4">

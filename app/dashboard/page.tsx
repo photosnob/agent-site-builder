@@ -39,6 +39,7 @@ export default async function Dashboard() {
       editsLeft={quota.left}
       editsLimit={quota.limit}
       pages={pages.map((p) => ({ id: p.id, slug: p.slug, title: p.title, enabled: p.enabled }))}
+      template={site.template}
       hero={{ style: site.theme?.heroStyle ?? "full-bleed", image: hp?.image, videoUrl: hp?.videoUrl, videoSpeed: hp?.videoSpeed, slides: hp?.slides ?? [], secondaryCtaLabel: hp?.secondaryCtaLabel, secondaryCtaTarget: hp?.secondaryCtaTarget }}
       assets={assets.map((a) => ({ id: a.id, url: a.url, kind: a.kind, meta: a.meta as { type?: string } }))}
       revisions={revisions ?? []}
