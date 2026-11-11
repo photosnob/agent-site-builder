@@ -38,7 +38,10 @@ export interface SiteAsset {
 }
 
 export interface ImportData {
+  /** The first site scanned (the agent's main site). */
   sourceUrl: string;
+  /** Every site scanned during onboarding. */
+  sourceUrls?: string[];
   bio?: string;
   testimonials?: { quote: string; author: string }[];
   specialties?: string[];

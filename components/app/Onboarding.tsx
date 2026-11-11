@@ -191,29 +191,82 @@ function Field({ label, value, onChange, type = "text", placeholder, maxLength }
   );
 }
 
-function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { siteId: string; agentName: string; defaultUrl: string; initialAssets: SiteAsset[]; onDone: () => void }) {
+type Scan = ScrapeResult & { host: string };
+type ListingPick = { on: boolean; address: string; price: string; status: string };
+
+function hostOf(u: string) { try { return new URL(u).host.replace(/^www\./, ""); } catch { return u; } }
+
+/**
+ * Scan one or more sites (the agent's own site, a brokerage profile page, etc.).
+ * Each scan adds to what's already found; nothing is lost when another site is
+ * scanned, and every item can be switched off before importing.
+ */
+function ImportStep({ siteId, agentName: _agentName, defaultUrl, initialAssets, onDone }: { siteId: string; agentName: string; defaultUrl: string; initialAssets: SiteAsset[]; onDone: () => void }) {
   const [url, setUrl] = useState(defaultUrl);
-  const [scan, setScan] = useState<ScrapeResult | null>(null);
+  const [scans, setScans] = useState<Scan[]>([]);
   const [headshot, setHeadshot] = useState<string | null>(null);
-  const [listings, setListings] = useState<Record<string, { on: boolean; address: string; price: string; status: string }>>({});
-  const [keepTestimonials, setKeepTestimonials] = useState<number[]>([]);
-  const [useBio, setUseBio] = useState(true);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [listings, setListings] = useState<Record<string, ListingPick>>({});
+  const [bioFrom, setBioFrom] = useState<string | null>(null);
+  const [testimonialsOff, setTestimonialsOff] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState(initialAssets.some((x) => x.kind === "headshot"));
+
+  // Everything found so far, de-duplicated across scans (first site to find an image keeps it).
+  const seen = new Set<string>();
+  const allHeadshots = scans.flatMap((s) => s.headshots.filter((h) => !seen.has(h.url) && seen.add(h.url)));
+  const seenL = new Set<string>();
+  const allListings = scans.flatMap((s) => s.listings.filter((l) => !seenL.has(l.url) && seenL.add(l.url)).map((l) => ({ ...l, host: s.host })));
+  const logos = [...new Set(scans.map((s) => s.logo).filter((l): l is string => Boolean(l)))];
+  const bios = scans.filter((s) => s.bio).map((s) => ({ src: s.sourceUrl, host: s.host, text: s.bio! }));
+  const seenQ = new Set<string>();
+  const allTestimonials = scans.flatMap((s) => s.testimonials
+    .filter((t) => { const k = t.quote.trim().toLowerCase(); return !seenQ.has(k) && seenQ.add(k); })
+    .map((t) => ({ ...t, key: t.quote.trim().toLowerCase(), host: s.host })));
+  const pickedCount = allListings.filter((l) => listings[l.url]?.on).length;
+  const anything = scans.length > 0;
 
   async function doScan() {
     setBusy(true); setMsg(null);
     try {
       const r: ScrapeResult = await api(`/api/sites/${siteId}/import`, "POST", { url });
-      setScan(r);
-      setHeadshot(r.headshots[0]?.url ?? null);
-      setListings(Object.fromEntries(r.listings.map((l, i) => [l.url, { on: i < 6, address: l.address ?? "", price: l.price ?? "", status: l.status ?? "sold" }])));
-      setKeepTestimonials(r.testimonials.map((_, i) => i));
-      const found = [r.headshots.length && "a headshot", r.listings.length && `${r.listings.length} listing photo${r.listings.length === 1 ? "" : "s"}`, r.bio && "your bio", r.testimonials.length && `${r.testimonials.length} testimonial${r.testimonials.length === 1 ? "" : "s"}`].filter(Boolean);
-      setMsg([found.length ? `Found ${found.join(", ")}.` : "We read the site but couldn't spot a headshot or listings. Upload them below.", ...r.notes].join(" "));
+      const scan: Scan = { ...r, host: hostOf(r.sourceUrl) };
+      // Rescanning the same site replaces its results; any other site is added alongside.
+      setScans((prev) => [...prev.filter((s) => s.sourceUrl !== r.sourceUrl), scan]);
+      setHeadshot((h) => h ?? r.headshots[0]?.url ?? null);
+      setLogo((l) => l ?? r.logo ?? null);
+      setBioFrom((b) => b ?? (r.bio ? r.sourceUrl : null));
+      setListings((prev) => {
+        const next = { ...prev };
+        let on = Object.values(prev).filter((v) => v.on).length;
+        for (const l of r.listings) {
+          if (next[l.url]) continue; // keep the agent's edits for photos already found
+          next[l.url] = { on: on < 6, address: l.address ?? "", price: l.price ?? "", status: l.status ?? "sold" };
+          if (on < 6) on++;
+        }
+        return next;
+      });
+      const found = [r.headshots.length && `${r.headshots.length} headshot option${r.headshots.length === 1 ? "" : "s"}`, r.listings.length && `${r.listings.length} listing photo${r.listings.length === 1 ? "" : "s"}`, r.bio && "a bio", r.testimonials.length && `${r.testimonials.length} testimonial${r.testimonials.length === 1 ? "" : "s"}`].filter(Boolean);
+      setMsg([found.length ? `${hostOf(r.sourceUrl)}: found ${found.join(", ")}. Scan another site to add more.` : `We read ${hostOf(r.sourceUrl)} but couldn't spot a headshot or listings.`, ...r.notes].join(" "));
+      setUrl("");
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
+
+  function removeScan(src: string) {
+    const gone = scans.find((s) => s.sourceUrl === src);
+    const rest = scans.filter((s) => s.sourceUrl !== src);
+    setScans(rest);
+    if (!gone) return;
+    const stillFound = new Set(rest.flatMap((s) => [...s.headshots.map((h) => h.url), ...s.listings.map((l) => l.url), s.logo ?? ""]));
+    if (headshot && !stillFound.has(headshot)) setHeadshot(rest.flatMap((s) => s.headshots)[0]?.url ?? null);
+    if (logo && !stillFound.has(logo)) setLogo(rest.find((s) => s.logo)?.logo ?? null);
+    if (bioFrom === src) setBioFrom(rest.find((s) => s.bio)?.sourceUrl ?? null);
+    setListings((prev) => Object.fromEntries(Object.entries(prev).filter(([u]) => stillFound.has(u))));
+  }
+
+  const setListing = (u: string, patch: Partial<ListingPick>) => setListings((prev) => ({ ...prev, [u]: { ...prev[u], ...patch } }));
+  const setAllListings = (on: boolean) => setListings((prev) => Object.fromEntries(Object.entries(prev).map(([u, v]) => [u, { ...v, on }])));
 
   async function upload(file: File, kind: "headshot" | "listing") {
     const fd = new FormData();
@@ -226,61 +279,112 @@ function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { 
   async function confirm() {
     setBusy(true); setMsg(null);
     try {
-      if (scan) {
-        const picked = Object.entries(listings).filter(([, v]) => v.on).map(([u, v]) => ({ url: u, address: v.address || undefined, price: v.price || undefined, status: v.status as "sold" }));
-        await api(`/api/sites/${siteId}/assets`, "POST", { headshotUrl: uploaded ? undefined : headshot ?? undefined, logoUrl: scan.logo, listings: picked });
+      if (anything) {
+        const picked = allListings.filter((l) => listings[l.url]?.on).map((l) => {
+          const v = listings[l.url];
+          return { url: l.url, address: v.address || undefined, price: v.price || undefined, status: v.status as "sold" };
+        });
+        await api(`/api/sites/${siteId}/assets`, "POST", { headshotUrl: uploaded ? undefined : headshot ?? undefined, logoUrl: logo ?? undefined, listings: picked });
         await api(`/api/sites/${siteId}`, "PATCH", {
-          importData: { bio: useBio ? scan.bio : undefined, testimonials: scan.testimonials.filter((_, i) => keepTestimonials.includes(i)) },
+          importData: {
+            bio: bios.find((b) => b.src === bioFrom)?.text,
+            testimonials: allTestimonials.filter((t) => !testimonialsOff.has(t.key)).map(({ quote, author }) => ({ quote, author })),
+          },
         });
       }
       onDone();
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
 
+  const tile = (on: boolean) => `relative overflow-hidden rounded-lg border-2 ${on ? "border-stone-900" : "border-transparent opacity-60 hover:opacity-100"}`;
+  const tick = <span aria-hidden className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-stone-900 text-[11px] text-white">✓</span>;
+
   return (
     <section className="mt-8 space-y-6">
       <h1 className="text-3xl font-bold">Bring in your assets</h1>
-      <p className="text-stone-600">We&apos;ll read your current site and suggest a headshot, listing photos, your bio and testimonials. You choose what comes over; we copy images to your library.</p>
+      <p className="text-stone-600">We&apos;ll read your current site and suggest a headshot, listing photos, your bio and testimonials. Scan as many sites as you like (your own site, your brokerage profile page); everything found adds up here, and you pick what comes over.</p>
       <div className="flex gap-2">
-        <input className="input" placeholder="https://yourname.com" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <button className="btn shrink-0" disabled={busy || !url} onClick={doScan}>{busy && !scan ? "Scanning…" : "Scan site"}</button>
+        <input className="input" placeholder={anything ? "Another site, e.g. your brokerage profile page" : "https://yourname.com"} value={url} onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && url && !busy) doScan(); }} />
+        <button className="btn shrink-0" disabled={busy || !url} onClick={doScan}>{busy ? "Scanning…" : anything ? "Scan another" : "Scan site"}</button>
       </div>
+
+      {scans.length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label="Sites scanned">
+          {scans.map((s) => (
+            <li key={s.sourceUrl} className="flex items-center gap-2 rounded-full border border-stone-200 bg-white py-1 pl-3 pr-1 text-sm">
+              <span title={s.sourceUrl}>{s.host}</span>
+              <span className="text-xs text-stone-500">{s.listings.length} photos</span>
+              <button className="flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-900" onClick={() => removeScan(s.sourceUrl)} aria-label={`Remove everything found on ${s.host}`} title="Remove this site's results">✕</button>
+            </li>
+          ))}
+        </ul>
+      )}
       {msg && <p className="text-sm text-stone-700">{msg}</p>}
 
-      {scan && (
+      {anything && (
         <div className="space-y-8">
-          {scan.headshots.length > 0 && !uploaded && (
+          {allHeadshots.length > 0 && !uploaded && (
             <div>
               <h2 className="font-semibold">Headshot</h2>
+              <p className="text-xs text-stone-500">Pick one, or tap it again to use none.</p>
               <div className="mt-3 flex flex-wrap gap-3">
-                {scan.headshots.map((h) => (
-                  <button key={h.url} onClick={() => setHeadshot(h.url)} className={`overflow-hidden rounded-lg border-2 ${headshot === h.url ? "border-stone-900" : "border-transparent"}`}>
+                {allHeadshots.map((h) => (
+                  <button key={h.url} onClick={() => setHeadshot(headshot === h.url ? null : h.url)} aria-pressed={headshot === h.url} className={tile(headshot === h.url)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={h.url} alt={h.alt} className="h-28 w-28 object-cover" referrerPolicy="no-referrer" />
+                    {headshot === h.url && tick}
                   </button>
                 ))}
               </div>
             </div>
           )}
-          {scan.listings.length > 0 && (
+
+          {logos.length > 0 && (
             <div>
-              <h2 className="font-semibold">Listings to feature</h2>
+              <h2 className="font-semibold">Logo</h2>
+              <p className="text-xs text-stone-500">Tap to choose, or tap again to skip. You can also upload one later in Settings.</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {logos.map((l) => (
+                  <button key={l} onClick={() => setLogo(logo === l ? null : l)} aria-pressed={logo === l} className={`${tile(logo === l)} bg-stone-100 p-2`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={l} alt="" className="h-12 w-32 object-contain" referrerPolicy="no-referrer" />
+                    {logo === l && tick}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {allListings.length > 0 && (
+            <div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-semibold">Listings to feature <span className="font-normal text-stone-500">({pickedCount} of {allListings.length} selected)</span></h2>
+                <div className="flex gap-3 text-xs">
+                  <button className="underline" onClick={() => setAllListings(true)}>Select all</button>
+                  <button className="underline" onClick={() => setAllListings(false)}>Clear all</button>
+                </div>
+              </div>
               <p className="text-xs text-stone-500">Check the details. Only feature listings you represented, and follow your MLS&apos;s rules for sold data.</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {scan.listings.map((l) => {
+                {allListings.map((l) => {
                   const v = listings[l.url];
                   return (
                     <div key={l.url} className={`flex gap-3 rounded-lg border bg-white p-2 ${v?.on ? "border-stone-900" : "border-stone-200"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={l.url} alt="" className="h-20 w-24 shrink-0 rounded object-cover" referrerPolicy="no-referrer" />
-                      <div className="flex-1 space-y-1">
+                      <button type="button" onClick={() => setListing(l.url, { on: !v?.on })} aria-pressed={v?.on ?? false} aria-label={`${v?.on ? "Deselect" : "Select"} listing photo`} className={`relative shrink-0 ${v?.on ? "" : "opacity-50"}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={l.url} alt="" className="h-20 w-24 rounded object-cover" referrerPolicy="no-referrer" />
+                        {v?.on && tick}
+                      </button>
+                      <div className="min-w-0 flex-1 space-y-1">
                         <label className="flex items-center gap-2 text-xs font-semibold">
-                          <input type="checkbox" checked={v?.on ?? false} onChange={(e) => setListings({ ...listings, [l.url]: { ...v, on: e.target.checked } })} /> Feature
+                          <input type="checkbox" checked={v?.on ?? false} onChange={(e) => setListing(l.url, { on: e.target.checked })} /> Feature
+                          {scans.length > 1 && <span className="ml-auto truncate font-normal text-stone-400">{l.host}</span>}
                         </label>
-                        <input className="input !py-1 text-xs" placeholder="Address" value={v?.address ?? ""} onChange={(e) => setListings({ ...listings, [l.url]: { ...v, address: e.target.value } })} />
+                        <input className="input !py-1 text-xs" placeholder="Address" value={v?.address ?? ""} onChange={(e) => setListing(l.url, { address: e.target.value })} />
                         <div className="flex gap-1">
-                          <input className="input !py-1 text-xs" placeholder="Price" value={v?.price ?? ""} onChange={(e) => setListings({ ...listings, [l.url]: { ...v, price: e.target.value } })} />
-                          <select className="input !py-1 text-xs" value={v?.status ?? "sold"} onChange={(e) => setListings({ ...listings, [l.url]: { ...v, status: e.target.value } })}>
+                          <input className="input !py-1 text-xs" placeholder="Price" value={v?.price ?? ""} onChange={(e) => setListing(l.url, { price: e.target.value })} />
+                          <select className="input !py-1 text-xs" value={v?.status ?? "sold"} onChange={(e) => setListing(l.url, { status: e.target.value })}>
                             <option value="sold">Sold</option><option value="active">Active</option><option value="pending">Pending</option><option value="coming-soon">Coming soon</option>
                           </select>
                         </div>
@@ -291,20 +395,36 @@ function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { 
               </div>
             </div>
           )}
-          {scan.bio && (
-            <label className="block rounded-lg border border-stone-200 bg-white p-4 text-sm">
-              <span className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={useBio} onChange={(e) => setUseBio(e.target.checked)} /> Use my bio from this site</span>
-              <span className="mt-2 block text-stone-600">{scan.bio.slice(0, 400)}{scan.bio.length > 400 ? "…" : ""}</span>
-            </label>
-          )}
-          {scan.testimonials.length > 0 && (
-            <div>
-              <h2 className="font-semibold">Testimonials found</h2>
+
+          {bios.length > 0 && (
+            <fieldset>
+              <legend className="font-semibold">Bio</legend>
               <div className="mt-2 space-y-2">
-                {scan.testimonials.map((t, i) => (
-                  <label key={i} className="flex gap-3 rounded-lg border border-stone-200 bg-white p-3 text-sm">
-                    <input type="checkbox" checked={keepTestimonials.includes(i)} onChange={(e) => setKeepTestimonials(e.target.checked ? [...keepTestimonials, i] : keepTestimonials.filter((x) => x !== i))} />
-                    <span>“{t.quote}” <span className="text-stone-500">— {t.author}</span></span>
+                {bios.map((b) => (
+                  <label key={b.src} className={`block rounded-lg border bg-white p-4 text-sm ${bioFrom === b.src ? "border-stone-900" : "border-stone-200"}`}>
+                    <span className="flex items-center gap-2 font-semibold"><input type="radio" name="bio" checked={bioFrom === b.src} onChange={() => setBioFrom(b.src)} /> Use the bio from {b.host}</span>
+                    <span className="mt-2 block text-stone-600">{b.text.slice(0, 400)}{b.text.length > 400 ? "…" : ""}</span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 px-1 text-sm"><input type="radio" name="bio" checked={bioFrom === null} onChange={() => setBioFrom(null)} /> Don&apos;t import a bio</label>
+              </div>
+            </fieldset>
+          )}
+
+          {allTestimonials.length > 0 && (
+            <div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-semibold">Testimonials found <span className="font-normal text-stone-500">({allTestimonials.length - allTestimonials.filter((t) => testimonialsOff.has(t.key)).length} selected)</span></h2>
+                <div className="flex gap-3 text-xs">
+                  <button className="underline" onClick={() => setTestimonialsOff(new Set())}>Select all</button>
+                  <button className="underline" onClick={() => setTestimonialsOff(new Set(allTestimonials.map((t) => t.key)))}>Clear all</button>
+                </div>
+              </div>
+              <div className="mt-2 space-y-2">
+                {allTestimonials.map((t) => (
+                  <label key={t.key} className="flex gap-3 rounded-lg border border-stone-200 bg-white p-3 text-sm">
+                    <input type="checkbox" checked={!testimonialsOff.has(t.key)} onChange={(e) => setTestimonialsOff((prev) => { const n = new Set(prev); if (e.target.checked) n.delete(t.key); else n.add(t.key); return n; })} />
+                    <span>“{t.quote}” <span className="text-stone-500">— {t.author}</span>{scans.length > 1 && <span className="ml-2 text-xs text-stone-400">{t.host}</span>}</span>
                   </label>
                 ))}
               </div>
@@ -323,7 +443,7 @@ function ImportStep({ siteId, agentName, defaultUrl, initialAssets, onDone }: { 
 
       <div className="flex gap-3">
         <button className="btn-ghost" onClick={onDone} disabled={busy}>Skip for now</button>
-        <button className="btn" onClick={confirm} disabled={busy || (!scan && !uploaded)}>{busy && scan ? "Importing…" : "Use these"}</button>
+        <button className="btn" onClick={confirm} disabled={busy || (!anything && !uploaded)}>{busy && anything ? "Importing…" : "Use these"}</button>
       </div>
     </section>
   );
