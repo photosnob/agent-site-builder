@@ -6,7 +6,9 @@ import { Field, PageShell, apiJson, uploadPhoto, useReorder, useStatus } from ".
 const STATUS = [["active", "Active"], ["coming-soon", "Coming soon"], ["pending", "Pending"], ["sold", "Sold"]] as const;
 type Draft = { address: string; city: string; price: string; status: Listing["status"]; beds: string; baths: string; sqft: string; description: string; photos: string[]; linkUrl: string; featured: boolean };
 const EMPTY: Draft = { address: "", city: "", price: "", status: "active", beds: "", baths: "", sqft: "", description: "", photos: [], linkUrl: "", featured: true };
-const toDraft = (l: Listing): Draft => ({ address: l.address, city: l.city ?? "", price: l.price ?? "", status: l.status, beds: l.beds?.toString() ?? "", baths: l.baths?.toString() ?? "", sqft: l.sqft?.toString() ?? "", description: l.description ?? "", photos: l.photos, linkUrl: l.link_url ?? "", featured: l.featured });
+const NEEDS_ADDRESS = "Add the address";
+// A listing imported without an address is hidden until one is added; saving with an address shows it again.
+const toDraft = (l: Listing): Draft => ({ address: l.address === NEEDS_ADDRESS ? "" : l.address, city: l.city ?? "", price: l.price ?? "", status: l.status, beds: l.beds?.toString() ?? "", baths: l.baths?.toString() ?? "", sqft: l.sqft?.toString() ?? "", description: l.description ?? "", photos: l.photos, linkUrl: l.link_url ?? "", featured: l.address === NEEDS_ADDRESS ? true : l.featured });
 const num = (s: string) => (s.trim() === "" ? null : Number(s.replace(/[^\d.]/g, "")));
 /** Photos found on a listing page; the picked ones are copied into the library on save. */
 type Found = { photos: string[]; picked: string[] };
@@ -54,14 +56,14 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
 
   return (
     <PageShell title="Listings" intro="Add featured properties by hand until your MLS feed is connected. They appear in the Featured listings sections on your home, Buy and Sell pages, and changes go live right away."
-      action={!editing && (
+      action={!editing && items.length > 0 && (
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={() => setImportOpen((o) => !o)}>Import from a link</button>
           <button className="btn" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>
         </div>
       )}>
       {view}
-      {importOpen && !editing && (
+      {importOpen && !editing && items.length > 0 && (
         <div className="mb-4 rounded-xl border border-stone-200 bg-white p-5">
           <p className="font-medium">Import a listing from its web page</p>
           <p className="mt-1 text-sm text-stone-500">Paste the link to one property: your own site, your brokerage&apos;s listing page, or a portal. We&apos;ll fill in the details and find the photos for you to check.</p>
@@ -77,7 +79,23 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
           found={editing.found} onFoundChange={(found) => setEditing({ ...editing, found })} notes={editing.notes}
           onCancel={() => setEditing(null)} onSave={save} />
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">No listings yet. Add your current and recently sold properties.</div>
+        <div className="rounded-xl border border-dashed border-stone-300 p-8">
+          <p className="text-center font-medium">No listings yet. Add your current and recently sold properties.</p>
+          <div className="mx-auto mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+            <div className="rounded-lg bg-white p-5 ring-1 ring-stone-200">
+              <p className="font-semibold">Import from a link</p>
+              <p className="mt-1 text-sm text-stone-500">Paste a property&apos;s page and we&apos;ll fill in the details and find its photos.</p>
+              <input className="input mt-3" placeholder="https://…/1234-elm-street" value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && importUrl.trim() && !busy) readListing(); }} />
+              <button className="btn mt-2 w-full" disabled={!!busy || !importUrl.trim()} onClick={readListing}>{busy === "read" ? "Reading… (up to a minute)" : "Read listing"}</button>
+            </div>
+            <div className="flex flex-col rounded-lg bg-white p-5 ring-1 ring-stone-200">
+              <p className="font-semibold">Add by hand</p>
+              <p className="mt-1 text-sm text-stone-500">Type the details and upload your own photos.</p>
+              <button className="btn-ghost mt-auto w-full" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="space-y-3">
           {items.map((l, i) => (
@@ -85,7 +103,7 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {l.photos[0] ? <img src={l.photos[0]} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" /> : <div className="h-16 w-24 shrink-0 rounded-lg bg-stone-100" />}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{l.address}{l.city ? `, ${l.city}` : ""}</p>
+                <p className="truncate font-medium">{l.address === NEEDS_ADDRESS ? <span className="text-amber-700">Needs an address (hidden from your site)</span> : <>{l.address}{l.city ? `, ${l.city}` : ""}</>}</p>
                 <p className="text-xs text-stone-500">{[l.price, STATUS.find(([v]) => v === l.status)?.[1], l.beds && `${l.beds} bd`, l.baths && `${l.baths} ba`, `${l.photos.length} photo${l.photos.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}</p>
               </div>
               <label className="flex items-center gap-1.5 text-xs text-stone-600">

@@ -4,6 +4,7 @@ import { DashNav } from "@/components/app/DashNav";
 import { ListingsManager } from "@/components/manage/ListingsManager";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import type { SiteRow } from "@/lib/types";
+import { seedListingsFromImport } from "@/lib/pages/server";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function Page() {
   const { data } = await supabase.from("sites").select("*").eq("owner_id", user.id).maybeSingle();
   const site = data as SiteRow | null;
   if (!site) redirect("/onboarding");
+  await seedListingsFromImport(site).catch(() => 0);
   const { data: items, error } = await supabase.from("site_listings").select("*").eq("site_id", site.id).order("position").order("created_at", { ascending: false });
   return (
     <>

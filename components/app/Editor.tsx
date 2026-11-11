@@ -37,6 +37,7 @@ export function Editor(props: {
   const [previewKey, setPreviewKey] = useState(0);
   const [editsLeft, setEditsLeft] = useState(props.editsLeft);
   const [pageId, setPageId] = useState<string | null>(null);
+  const [heroOpen, setHeroOpen] = useState(0);
   const page = props.pages.find((p) => p.id === pageId) ?? null;
 
   const base = `/api/sites/${props.siteId}`;
@@ -86,7 +87,7 @@ export function Editor(props: {
             {error && <p className="mb-3 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <PagePicker pages={props.pages} value={pageId} disabled={!!proposal || !!busy} siteId={props.siteId}
               onChange={(id) => { setPageId(id); setPreviewKey((k) => k + 1); }} onChanged={() => router.refresh()} />
-            {!pageId && tab === "edit" && <HeroPanel siteId={props.siteId} initial={props.hero} assets={props.assets} onSaved={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
+            {!pageId && tab === "edit" && <HeroPanel siteId={props.siteId} initial={props.hero} assets={props.assets} openSignal={heroOpen} onSaved={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
 
             {tab === "edit" && (
               <div className="space-y-4">
@@ -116,6 +117,9 @@ export function Editor(props: {
                       <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
                         <p className="font-semibold">This change can&apos;t be made:</p>
                         <ul className="mt-1 list-disc pl-4">{proposal.errors.map((e) => <li key={e}>{e}</li>)}</ul>
+                        {!pageId && /hero/i.test([proposal.summary, ...proposal.errors].join(" ")) && /photo|image|video|library/i.test([proposal.summary, ...proposal.errors].join(" ")) && (
+                          <button className="mt-3 rounded-md bg-white px-3 py-1.5 font-semibold text-stone-900 shadow-sm ring-1 ring-red-200 hover:bg-red-100" onClick={() => setHeroOpen((n) => n + 1)}>Upload or pick a hero photo ↑</button>
+                        )}
                       </div>
                     )}
                     {proposal.warnings.length > 0 && (

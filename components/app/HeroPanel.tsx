@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadPhoto } from "@/components/manage/shared";
 
@@ -20,9 +20,18 @@ const STYLES: { id: Style; label: string; hint: string }[] = [
 ];
 
 /** Home hero style and media. Saves to the draft (undoable); publish to go live. */
-export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string; initial: HeroState; assets: Asset[]; onSaved: () => void }) {
+export function HeroPanel({ siteId, initial, assets, onSaved, openSignal = 0 }: { siteId: string; initial: HeroState; assets: Asset[]; onSaved: () => void; openSignal?: number }) {
   const [open, setOpen] = useState(false);
-  const [h, setH] = useState(initial);
+  const [dirty, setDirty] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Other parts of the editor (e.g. an AI reply about missing photos) can ask the panel to open.
+  useEffect(() => {
+    if (!openSignal) return;
+    setOpen(true);
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [openSignal]);
+  const [h, setHRaw] = useState(initial);
+  const setH: typeof setHRaw = (v) => { setHRaw(v); setDirty(true); };
   const [lib, setLib] = useState(assets);
   const [stock, setStock] = useState<{ name: string; url: string; poster: string | null }[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -59,6 +68,7 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
       } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
     }
     setBusy(null);
+    setMsg((m) => (m && !m.ok ? m : { ok: true, text: "Uploaded and selected. Click Save hero to use it." }));
   }
 
   async function save() {
@@ -71,21 +81,31 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
     setBusy(null);
     if (!res.ok) { setMsg({ ok: false, text: data.error }); return; }
     setMsg({ ok: true, text: "Saved to your draft. Publish to make it live." });
+    setDirty(false);
     onSaved();
   }
 
   const thumb = (url: string, selected: boolean, onClick: () => void, badge?: string) => (
-    <button key={url} type="button" onClick={onClick} className={`relative overflow-hidden rounded-md border-2 ${selected ? "border-stone-900" : "border-transparent"}`}>
+    <button key={url} type="button" onClick={onClick} aria-pressed={selected} className={`relative overflow-hidden rounded-md border-2 ${selected ? "border-stone-900" : "border-transparent hover:border-stone-300"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" className="h-14 w-20 object-cover" />
-      {badge && <span className="absolute left-1 top-1 rounded bg-stone-900 px-1 text-[10px] text-white">{badge}</span>}
+      <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
+      {badge && <span className="absolute left-1 top-1 rounded bg-stone-900 px-1.5 text-[10px] text-white">{badge}</span>}
     </button>
   );
+  // A big, obvious upload tile that sits in the photo grid.
+  const uploadTile = (
+    <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed border-stone-300 text-center text-xs text-stone-600 hover:border-stone-500 hover:bg-stone-50">
+      <span className="text-lg leading-none">+</span>{busy === "photos" ? "Uploading…" : "Upload photos"}
+      <input type="file" accept="image/*" multiple className="hidden" disabled={!!busy} onChange={(e) => { uploadImages(e.target.files); e.target.value = ""; }} />
+    </label>
+  );
+  const photoTitle = h.style === "centered" ? "Photo (your headshot if none is picked)" : h.style === "split" ? "Photo beside the text" : h.style === "video" ? "" : "Background photo";
 
   return (
-    <div className="mb-4 rounded-lg border border-stone-200">
-      <button className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold" onClick={() => setOpen((o) => !o)}>
-        Hero style <span className="font-normal text-stone-500">{STYLES.find((s) => s.id === h.style)?.label} {open ? "▴" : "▾"}</span>
+    <div ref={panelRef} className="mb-4 scroll-mt-4 rounded-lg border border-stone-200">
+      <button className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span>Hero photo, video &amp; style{!open && <span className="block text-xs font-normal text-stone-500">Change the big image at the top of your home page</span>}</span>
+        <span className="font-normal text-stone-500">{STYLES.find((s) => s.id === h.style)?.label} {open ? "▴" : "▾"}</span>
       </button>
       {open && (
         <div className="space-y-4 border-t border-stone-100 p-3 text-sm">
@@ -130,7 +150,9 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
           {h.style === "slideshow" ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Slides ({h.slides.length}/8), in order</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-xs text-stone-500">Tap photos to add or remove them, or upload new ones.</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {uploadTile}
                 {images.map((a) => {
                   const n = h.slides.indexOf(a.url);
                   return thumb(a.url, n >= 0, () => setH({ ...h, slides: n >= 0 ? h.slides.filter((u) => u !== a.url) : h.slides.length < 8 ? [...h.slides, a.url] : h.slides }), n >= 0 ? String(n + 1) : undefined);
@@ -138,13 +160,15 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {images.map((a) => thumb(a.url, h.image === a.url, () => setH({ ...h, image: a.url })))}
+            <div className="space-y-2">
+              {photoTitle && <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{photoTitle}</p>}
+              <p className="text-xs text-stone-500">Pick one of your photos, or upload a new one.</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {uploadTile}
+                {images.map((a) => thumb(a.url, h.image === a.url, () => setH({ ...h, image: a.url }), h.image === a.url ? "In use" : undefined))}
+              </div>
             </div>
           )}
-          <label className="block cursor-pointer text-xs font-semibold underline">{busy === "photos" ? "Uploading…" : "+ Upload photos"}
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { uploadImages(e.target.files); e.target.value = ""; }} />
-          </label>
 
           {(h.style === "video" || h.style === "slideshow") && (
             <div className="space-y-2">
@@ -160,6 +184,7 @@ export function HeroPanel({ siteId, initial, assets, onSaved }: { siteId: string
           )}
 
           {msg && <p className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
+          {dirty && !busy && <p className="text-xs font-medium text-amber-700">You have unsaved hero changes.</p>}
           <button className="btn w-full" disabled={!!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save hero"}</button>
         </div>
       )}

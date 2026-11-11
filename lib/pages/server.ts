@@ -50,3 +50,43 @@ export async function seedTestimonialsFromImport(site: Pick<SiteRow, "id" | "imp
   })));
   return items.length;
 }
+
+/**
+ * Listings picked during onboarding live in the site's Featured listings section
+ * and as listing photos in the library. Copy them into the Listings manager once
+ * so the agent can edit them there. A flag stops them coming back if deleted.
+ */
+export async function seedListingsFromImport(site: Pick<SiteRow, "id" | "import_data" | "content">) {
+  if ((site.import_data as { listingsSeeded?: boolean } | null)?.listingsSeeded) return 0;
+  const admin = createAdminClient();
+  const { count, error } = await admin.from("site_listings").select("id", { count: "exact", head: true }).eq("site_id", site.id);
+  if (error) return 0;
+  const markDone = () => admin.from("sites").update({ import_data: { ...(site.import_data ?? {}), listingsSeeded: true } }).eq("id", site.id);
+  if ((count ?? 0) > 0) { await markDone(); return 0; }
+
+  type Row = { photo: string; address?: string; price?: string; status?: string };
+  const fromBlock: Row[] = (site.content?.blocks ?? []).flatMap((b) => (b.type === "featured-listings" ? b.props.items.map((i) => ({ photo: i.image, address: i.address, price: i.price, status: i.status })) : []));
+  const { data: assets } = await admin.from("site_assets").select("url, meta, source_url").eq("site_id", site.id).eq("kind", "listing").not("source_url", "is", null).order("created_at");
+  const fromAssets: Row[] = (assets ?? []).map((a) => { const m = (a.meta ?? {}) as Record<string, string | undefined>; return { photo: a.url as string, address: m.address, price: m.price, status: m.status }; });
+  const seen = new Set<string>();
+  const rows = [...fromBlock, ...fromAssets].filter((r) => r.photo && !seen.has(r.photo) && seen.add(r.photo)).slice(0, 50);
+  if (rows.length) {
+    const STATUSES = ["active", "pending", "sold", "coming-soon"];
+    const { error: insErr } = await admin.from("site_listings").insert(rows.map((r, i) => {
+      const hasAddress = (r.address ?? "").trim().length >= 3;
+      return {
+        site_id: site.id,
+        address: hasAddress ? r.address!.trim().slice(0, 160) : "Add the address",
+        price: r.price?.slice(0, 40) || null,
+        status: STATUSES.includes(r.status ?? "") ? r.status : "sold",
+        photos: [r.photo],
+        // Without an address it stays hidden from the site until the agent fills it in.
+        featured: hasAddress,
+        position: i,
+      };
+    }));
+    if (insErr) return 0;
+  }
+  await markDone();
+  return rows.length;
+}

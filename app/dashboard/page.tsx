@@ -5,7 +5,7 @@ import { aiEnabled } from "@/lib/ai/claude";
 import type { SiteRow } from "@/lib/types";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import { editsLeftToday } from "@/lib/ai/usage";
-import { listPages, seedTestimonialsFromImport } from "@/lib/pages/server";
+import { listPages, seedListingsFromImport, seedTestimonialsFromImport } from "@/lib/pages/server";
 import { getAssets } from "@/lib/sites";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function Dashboard() {
   ]);
 
   const liveUrl = publicSiteUrl(site.slug);
-  const [pages, assets] = await Promise.all([listPages(site.id), getAssets(site.id), seedTestimonialsFromImport(site).catch(() => 0)]);
+  const [pages, assets] = await Promise.all([listPages(site.id), getAssets(site.id), seedTestimonialsFromImport(site).catch(() => 0), seedListingsFromImport(site).catch(() => 0)]);
   const heroBlock = site.content.blocks.find((b) => b.type === "hero");
   const hp = heroBlock?.type === "hero" ? heroBlock.props : undefined;
   const quota = await editsLeftToday(site.id, (site as SiteRow & { ai_daily_edit_limit?: number | null }).ai_daily_edit_limit ?? null);
