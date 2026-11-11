@@ -18,23 +18,26 @@ const MAX_PHOTOS = 20;
 export function ListingsManager({ siteId, initial }: { siteId: string; initial: Listing[] }) {
   const [items, setItems] = useState(initial);
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft; found?: Found; notes?: string[] } | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const { busy, run, view } = useStatus();
   const base = `/api/sites/${siteId}/listings`;
   const move = useReorder((id) => `${base}/${id}`, items, setItems);
 
-  const readListing = () => run("read", async () => {
-    const r: Scraped = await apiJson(`${base}/scrape`, "POST", { url: importUrl.trim() });
+  const readListing = (urlArg?: string) => run("read", async () => {
+    const r: Scraped = await apiJson(`${base}/scrape`, "POST", { url: (urlArg ?? importUrl).trim() });
     const d = r.draft;
-    setEditing({
-      id: null,
-      draft: { ...EMPTY, address: d.address ?? "", city: d.city ?? "", price: d.price ?? "", status: d.status ?? "active", beds: d.beds?.toString() ?? "", baths: d.baths?.toString() ?? "", sqft: d.sqft?.toString() ?? "", description: d.description ?? "", linkUrl: r.sourceUrl },
-      found: { photos: r.photos, picked: r.photos.slice(0, 12) },
-      notes: r.notes,
+    setEditing((cur) => {
+      const was = cur?.draft ?? EMPTY;
+      const pick = (v: string | number | undefined, old: string) => (v === undefined || v === "" ? old : String(v));
+      return {
+        id: cur?.id ?? null,
+        draft: { ...was, address: pick(d.address, was.address), city: pick(d.city, was.city), price: pick(d.price, was.price), status: d.status ?? was.status, beds: pick(d.beds, was.beds), baths: pick(d.baths, was.baths), sqft: pick(d.sqft, was.sqft), description: pick(d.description, was.description), linkUrl: was.linkUrl || r.sourceUrl },
+        found: { photos: r.photos, picked: r.photos.slice(0, Math.max(0, Math.min(12, MAX_PHOTOS - was.photos.length))) },
+        notes: r.notes,
+      };
     });
-    setImportOpen(false); setImportUrl("");
-  });
+    setImportUrl("");
+  }, undefined);
 
   const save = () => run("save", async () => {
     let d = editing!.draft;
@@ -56,27 +59,12 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
 
   return (
     <PageShell title="Listings" intro="Add featured properties by hand until your MLS feed is connected. They appear in the Featured listings sections on your home, Buy and Sell pages, and changes go live right away."
-      action={!editing && items.length > 0 && (
-        <div className="flex gap-2">
-          <button className="btn-ghost" onClick={() => setImportOpen((o) => !o)}>Import from a link</button>
-          <button className="btn" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>
-        </div>
-      )}>
+      action={!editing && items.length > 0 && <button className="btn" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>}>
       {view}
-      {importOpen && !editing && items.length > 0 && (
-        <div className="mb-4 rounded-xl border border-stone-200 bg-white p-5">
-          <p className="font-medium">Import a listing from its web page</p>
-          <p className="mt-1 text-sm text-stone-500">Paste the link to one property: your own site, your brokerage&apos;s listing page, or a portal. We&apos;ll fill in the details and find the photos for you to check.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input className="input min-w-64 flex-1" autoFocus placeholder="https://…/1234-elm-street" value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && importUrl.trim() && !busy) readListing(); }} />
-            <button className="btn" disabled={!!busy || !importUrl.trim()} onClick={readListing}>{busy === "read" ? "Reading… (up to a minute)" : "Read listing"}</button>
-          </div>
-        </div>
-      )}
       {editing ? (
         <ListingForm siteId={siteId} draft={editing.draft} onChange={(draft) => setEditing({ ...editing, draft })} busy={busy === "save"}
           found={editing.found} onFoundChange={(found) => setEditing({ ...editing, found })} notes={editing.notes}
+          scrape={{ url: importUrl, setUrl: setImportUrl, run: () => readListing(), busy: busy === "read" }}
           onCancel={() => setEditing(null)} onSave={save} />
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-stone-300 p-8">
@@ -87,7 +75,7 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
               <p className="mt-1 text-sm text-stone-500">Paste a property&apos;s page and we&apos;ll fill in the details and find its photos.</p>
               <input className="input mt-3" placeholder="https://…/1234-elm-street" value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && importUrl.trim() && !busy) readListing(); }} />
-              <button className="btn mt-2 w-full" disabled={!!busy || !importUrl.trim()} onClick={readListing}>{busy === "read" ? "Reading… (up to a minute)" : "Read listing"}</button>
+              <button className="btn mt-2 w-full" disabled={!!busy || !importUrl.trim()} onClick={() => readListing()}>{busy === "read" ? "Reading… (up to a minute)" : "Read listing"}</button>
             </div>
             <div className="flex flex-col rounded-lg bg-white p-5 ring-1 ring-stone-200">
               <p className="font-semibold">Add by hand</p>
@@ -128,9 +116,10 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
   );
 }
 
-function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy, found, onFoundChange, notes }: {
+function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy, found, onFoundChange, notes, scrape }: {
   siteId: string; draft: Draft; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void; busy: boolean;
   found?: Found; onFoundChange?: (f: Found) => void; notes?: string[];
+  scrape?: { url: string; setUrl: (u: string) => void; run: () => void; busy: boolean };
 }) {
   const [uploading, setUploading] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -149,6 +138,17 @@ function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy, found
   };
   return (
     <div className="space-y-5 rounded-xl border border-stone-200 bg-white p-5">
+      {scrape && (
+        <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
+          <label htmlFor="scrape-url" className="font-semibold">Scrape listing</label>
+          <p className="mt-0.5 text-sm text-stone-500">Paste any link to this property. We&apos;ll fill in the address and details below and find its photos.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <input id="scrape-url" className="input min-w-56 flex-1" placeholder="https://…/1234-elm-street" value={scrape.url} onChange={(e) => scrape.setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && scrape.url.trim() && !scrape.busy) scrape.run(); }} />
+            <button className="btn" disabled={scrape.busy || !scrape.url.trim()} onClick={scrape.run}>{scrape.busy ? "Scraping… (up to a minute)" : "Scrape listing"}</button>
+          </div>
+        </div>
+      )}
       {notes && notes.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{notes.join(" ")}</p>}
       {found && found.photos.length > 0 && onFoundChange && (
         <FoundPhotos found={found} room={MAX_PHOTOS - d.photos.length} onChange={onFoundChange} />
