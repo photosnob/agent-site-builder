@@ -25,6 +25,7 @@ Public URLs: `/s/<slug>/blog` on the app domain, or `<slug>.<root>/blog`, served
 
 Besides the home page, each site gets **Buy**, **Sell** (a seller's guide), **Meet the Team** and **Success Stories** pages (`lib/pages/defaults.ts`; Claude personalizes the Buy/Sell copy). Pages are edited with the same guarded prompt editor (pick the page at the top of the editor) and published together with the home page. Data-driven sections render from dashboard-managed tables, and changes there go live immediately:
 - **Listings** (`/dashboard/listings`): hand-entered properties with photos, a stopgap until MLS/IDX. They replace the imported items in every Featured listings section.
+  - **Import from a link:** paste one property's page and `lib/import/listing.ts` reads schema.org data, social tags, gallery and script-embedded photos (size variants collapsed), then Claude fills missing facts from the page text. The agent reviews the pre-filled form and picks photos, which are copied into storage on save (only URLs from that scan are accepted). Big portals often block automated readers or forbid scraping in their terms; agents' own and brokerage pages work best.
 - **Reviews** (`/dashboard/reviews`): curate, hide, reorder and star reviews. Starred ones show on the home page, and all visible ones on Success Stories. Imported testimonials are copied in the first time.
 - **Team** (`/dashboard/team`): team members after the agent.
 - **Logo** (Settings): solid backgrounds are removed in the browser (`lib/logo.ts`), previewed, then uploaded as a trimmed PNG.

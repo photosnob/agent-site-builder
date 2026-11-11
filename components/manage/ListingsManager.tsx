@@ -8,16 +8,43 @@ type Draft = { address: string; city: string; price: string; status: Listing["st
 const EMPTY: Draft = { address: "", city: "", price: "", status: "active", beds: "", baths: "", sqft: "", description: "", photos: [], linkUrl: "", featured: true };
 const toDraft = (l: Listing): Draft => ({ address: l.address, city: l.city ?? "", price: l.price ?? "", status: l.status, beds: l.beds?.toString() ?? "", baths: l.baths?.toString() ?? "", sqft: l.sqft?.toString() ?? "", description: l.description ?? "", photos: l.photos, linkUrl: l.link_url ?? "", featured: l.featured });
 const num = (s: string) => (s.trim() === "" ? null : Number(s.replace(/[^\d.]/g, "")));
+/** Photos found on a listing page; the picked ones are copied into the library on save. */
+type Found = { photos: string[]; picked: string[] };
+type Scraped = { sourceUrl: string; draft: { address?: string; city?: string; price?: string; status?: Draft["status"]; beds?: number; baths?: number; sqft?: number; description?: string }; photos: string[]; notes: string[] };
+const MAX_PHOTOS = 20;
 
 export function ListingsManager({ siteId, initial }: { siteId: string; initial: Listing[] }) {
   const [items, setItems] = useState(initial);
-  const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null);
+  const [editing, setEditing] = useState<{ id: string | null; draft: Draft; found?: Found; notes?: string[] } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
   const { busy, run, view } = useStatus();
   const base = `/api/sites/${siteId}/listings`;
   const move = useReorder((id) => `${base}/${id}`, items, setItems);
 
+  const readListing = () => run("read", async () => {
+    const r: Scraped = await apiJson(`${base}/scrape`, "POST", { url: importUrl.trim() });
+    const d = r.draft;
+    setEditing({
+      id: null,
+      draft: { ...EMPTY, address: d.address ?? "", city: d.city ?? "", price: d.price ?? "", status: d.status ?? "active", beds: d.beds?.toString() ?? "", baths: d.baths?.toString() ?? "", sqft: d.sqft?.toString() ?? "", description: d.description ?? "", linkUrl: r.sourceUrl },
+      found: { photos: r.photos, picked: r.photos.slice(0, 12) },
+      notes: r.notes,
+    });
+    setImportOpen(false); setImportUrl("");
+  });
+
   const save = () => run("save", async () => {
-    const d = editing!.draft;
+    let d = editing!.draft;
+    const found = editing!.found;
+    // Copy the photos picked from the listing page first, in the order they appear there.
+    if (found?.picked.length) {
+      const urls = found.photos.filter((u) => found.picked.includes(u)).slice(0, MAX_PHOTOS - d.photos.length);
+      const r = await apiJson(`${base}/scrape/photos`, "POST", { urls, address: d.address || undefined });
+      if (!r.photos.length) throw new Error("We couldn't copy those photos. Try again, or upload them with + Add photos.");
+      d = { ...d, photos: [...d.photos, ...r.photos] };
+      setEditing({ ...editing!, draft: d, found: { photos: found.photos.filter((u) => !urls.includes(u)), picked: [] } });
+    }
     const body = { address: d.address, city: d.city, price: d.price, status: d.status, beds: num(d.beds), baths: num(d.baths), sqft: num(d.sqft), description: d.description, photos: d.photos, linkUrl: d.linkUrl, featured: d.featured };
     if (!d.photos.length) throw new Error("Add at least one photo; the first one is the cover.");
     const { item } = editing!.id ? await apiJson(`${base}/${editing!.id}`, "PATCH", body) : await apiJson(base, "POST", body);
@@ -27,10 +54,27 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
 
   return (
     <PageShell title="Listings" intro="Add featured properties by hand until your MLS feed is connected. They appear in the Featured listings sections on your home, Buy and Sell pages, and changes go live right away."
-      action={!editing && <button className="btn" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>}>
+      action={!editing && (
+        <div className="flex gap-2">
+          <button className="btn-ghost" onClick={() => setImportOpen((o) => !o)}>Import from a link</button>
+          <button className="btn" onClick={() => setEditing({ id: null, draft: EMPTY })}>Add listing</button>
+        </div>
+      )}>
       {view}
+      {importOpen && !editing && (
+        <div className="mb-4 rounded-xl border border-stone-200 bg-white p-5">
+          <p className="font-medium">Import a listing from its web page</p>
+          <p className="mt-1 text-sm text-stone-500">Paste the link to one property: your own site, your brokerage&apos;s listing page, or a portal. We&apos;ll fill in the details and find the photos for you to check.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input className="input min-w-64 flex-1" autoFocus placeholder="https://…/1234-elm-street" value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && importUrl.trim() && !busy) readListing(); }} />
+            <button className="btn" disabled={!!busy || !importUrl.trim()} onClick={readListing}>{busy === "read" ? "Reading… (up to a minute)" : "Read listing"}</button>
+          </div>
+        </div>
+      )}
       {editing ? (
         <ListingForm siteId={siteId} draft={editing.draft} onChange={(draft) => setEditing({ ...editing, draft })} busy={busy === "save"}
+          found={editing.found} onFoundChange={(found) => setEditing({ ...editing, found })} notes={editing.notes}
           onCancel={() => setEditing(null)} onSave={save} />
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">No listings yet. Add your current and recently sold properties.</div>
@@ -66,7 +110,10 @@ export function ListingsManager({ siteId, initial }: { siteId: string; initial: 
   );
 }
 
-function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy }: { siteId: string; draft: Draft; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void; busy: boolean }) {
+function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy, found, onFoundChange, notes }: {
+  siteId: string; draft: Draft; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void; busy: boolean;
+  found?: Found; onFoundChange?: (f: Found) => void; notes?: string[];
+}) {
   const [uploading, setUploading] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => onChange({ ...d, [k]: v });
@@ -84,6 +131,10 @@ function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy }: { s
   };
   return (
     <div className="space-y-5 rounded-xl border border-stone-200 bg-white p-5">
+      {notes && notes.length > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{notes.join(" ")}</p>}
+      {found && found.photos.length > 0 && onFoundChange && (
+        <FoundPhotos found={found} room={MAX_PHOTOS - d.photos.length} onChange={onFoundChange} />
+      )}
       <div>
         <span className="label">Photos <span className="font-normal text-stone-400">(first is the cover; up to 20)</span></span>
         <div className="flex flex-wrap gap-2">
@@ -123,6 +174,40 @@ function ListingForm({ siteId, draft: d, onChange, onSave, onCancel, busy }: { s
       <div className="flex gap-2">
         <button className="btn" disabled={busy || uploading > 0} onClick={onSave}>{busy ? "Saving…" : "Save listing"}</button>
         <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+/** Pick which photos from the listing page come over. They're copied into the library on save. */
+function FoundPhotos({ found, room, onChange }: { found: Found; room: number; onChange: (f: Found) => void }) {
+  const toggle = (u: string) => {
+    if (found.picked.includes(u)) onChange({ ...found, picked: found.picked.filter((x) => x !== u) });
+    else if (found.picked.length < room) onChange({ ...found, picked: [...found.picked, u] });
+  };
+  const order = (u: string) => found.photos.filter((x) => found.picked.includes(x)).indexOf(u);
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="label !mb-0">Photos found on the page <span className="font-normal text-stone-400">({found.picked.length} of {found.photos.length} selected, up to {room})</span></span>
+        <div className="flex gap-3 text-xs">
+          <button className="underline" onClick={() => onChange({ ...found, picked: found.photos.slice(0, room) })}>Select all</button>
+          <button className="underline" onClick={() => onChange({ ...found, picked: [] })}>Clear all</button>
+        </div>
+      </div>
+      <p className="mb-2 mt-1 text-xs text-stone-500">Tap to include or leave out. Selected photos are copied into your library when you save, in this order; the first is the cover unless you already have photos below.</p>
+      <div className="flex max-h-80 flex-wrap gap-2 overflow-y-auto">
+        {found.photos.map((u) => {
+          const on = found.picked.includes(u);
+          return (
+            <button key={u} type="button" onClick={() => toggle(u)} aria-pressed={on} aria-label={on ? "Leave out this photo" : "Include this photo"}
+              className={`relative overflow-hidden rounded-lg border-2 ${on ? "border-stone-900" : "border-transparent opacity-50 hover:opacity-100"}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={u} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-24 w-32 object-cover" />
+              {on && <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-stone-900 px-1 text-[11px] text-white">{order(u) + 1}</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
