@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { BRAND, BrandFonts, Logo, Wordmark } from "@/components/marketing/Brand";
+import { BRAND, BrandFonts } from "@/components/marketing/Brand";
+import { MarketingFooter, MarketingHeader } from "@/components/marketing/Chrome";
 import { TemplateThumb } from "@/components/app/TemplateThumb";
 import { TEMPLATE_LIST } from "@/lib/templates";
 
-// Fill these in when pricing is set. While they hold a [placeholder], the page shows it as written.
-const PRICE = "[YOUR PRICE]";
-const TRIAL_TERMS = "[TRIAL TERMS]";
+// Early access is free for a limited time. Bring back a price here once payments are connected.
+const OFFER = "free during early access";
 
 const label = "text-[12px] font-medium uppercase tracking-[0.18em]";
 const serif = { fontFamily: BRAND.serif, fontWeight: 500, letterSpacing: "-0.01em" } as const;
@@ -56,19 +56,7 @@ export default function Home() {
       <BrandFonts />
       <style>{`.ll a:focus-visible,.ll button:focus-visible,.ll input:focus-visible{outline:2px solid ${BRAND.evergreen};outline-offset:3px}`}</style>
       <div className="ll">
-        <header className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8 sm:py-6">
-          <Link href="/" aria-label="Launch and List home"><Logo size={24} /></Link>
-          <nav aria-label="Main" className="hidden gap-7 text-[15px] font-medium md:flex">
-            <a href="#features" className="hover:opacity-70">features.</a>
-            <a href="#how" className="hover:opacity-70">how it works.</a>
-            <a href="#templates" className="hover:opacity-70">templates.</a>
-            <a href="#pricing" className="hover:opacity-70">pricing.</a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="px-2 py-3 text-[15px] font-medium hover:opacity-70">sign in.</Link>
-            <Link href="/signup" className="rounded-[2px] px-5 py-3 text-[15px] font-semibold" style={{ background: BRAND.evergreen, color: BRAND.ivory }}>launch my site.</Link>
-          </div>
-        </header>
+        <MarketingHeader />
 
         <section id="signup" className="mx-auto grid max-w-[1280px] items-center gap-14 px-5 pb-24 pt-10 sm:px-8 lg:grid-cols-2 lg:pt-16">
           <div className="flex flex-col gap-7">
@@ -85,7 +73,7 @@ export default function Home() {
                 className="min-h-14 flex-[1_1_260px] rounded-[2px] border bg-white px-6 text-base outline-none" style={{ borderColor: "#C9BFAE", color: BRAND.evergreen }} />
               <button type="submit" className="min-h-14 rounded-[2px] px-7 text-base font-bold" style={{ background: BRAND.brass, color: BRAND.evergreen }}>launch my site.</button>
             </form>
-            <p className={label} style={{ color: BRAND.taupe }}>{TRIAL_TERMS} · no credit card to start</p>
+            <p className={label} style={{ color: BRAND.taupe }}>{OFFER} · no credit card needed</p>
           </div>
 
           {/* Illustration of an agent site being edited by prompt. */}
@@ -178,13 +166,13 @@ export default function Home() {
 
         <section id="pricing" className="mx-auto grid max-w-[1280px] items-start gap-10 px-5 py-24 sm:px-8 lg:grid-cols-2">
           <div className="flex flex-col gap-5">
-            <h2 className={h2} style={serif}>One plan.<br />No agency retainer.</h2>
-            <p className="max-w-[460px] text-lg leading-normal" style={{ color: BRAND.ink }}>Everything to launch and run your site, priced for a solo agent.</p>
+            <h2 className={h2} style={serif}>Free for<br />early access.</h2>
+            <p className="max-w-[460px] text-lg leading-normal" style={{ color: BRAND.ink }}>Join now and get everything to launch and run your site at no cost, for a limited time. Paid plans come later, and early-access agents will be the first to hear about them.</p>
           </div>
           <div className="flex flex-col gap-6 rounded border bg-white p-8 sm:p-9" style={{ borderColor: BRAND.sand }}>
-            <div className="flex flex-wrap items-baseline gap-2"><span className="text-5xl sm:text-[64px]" style={serif}>{PRICE}</span><span style={{ color: BRAND.taupe }}>/ month</span></div>
+            <div className="flex flex-wrap items-baseline gap-2"><span className="text-5xl sm:text-[64px]" style={serif}>Free</span><span style={{ color: BRAND.taupe }}>during early access · limited time</span></div>
             <ul className="flex flex-col gap-3 text-base">
-              {["Custom website on your domain", "Import from your current site", "Unlimited edits by asking", "Modern templates made for agents"].map((x) => (
+              {["Custom website on your domain", "Import from your current site", "Edits just by asking", "Modern templates made for agents"].map((x) => (
                 <li key={x} className="flex gap-3"><Check />{x}</li>
               ))}
             </ul>
@@ -199,17 +187,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="border-t" style={{ borderColor: BRAND.sand }}>
-          <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-6 px-5 py-10 text-sm sm:px-8" style={{ color: BRAND.taupe }}>
-            <Wordmark size={20} />
-            <nav aria-label="Footer" className="flex flex-wrap gap-6">
-              <a href="#features" className="hover:underline">features.</a>
-              <a href="#pricing" className="hover:underline">pricing.</a>
-              <Link href="/login" className="hover:underline">sign in.</Link>
-            </nav>
-            <a href="#signup" className="hover:underline">back to top ↑</a>
-          </div>
-        </footer>
+        <MarketingFooter topHref="#signup" />
       </div>
     </div>
   );

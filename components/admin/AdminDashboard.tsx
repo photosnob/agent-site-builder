@@ -34,7 +34,10 @@ export function AdminDashboard({ report, settings, model }: { report: Report; se
           <h1 className="mt-1 text-3xl font-bold">AI usage</h1>
           <p className="mt-1 text-sm text-stone-500">Model {model} · days in {settings.timezone} · costs are estimates from the rates below</p>
         </div>
-        <a href="/dashboard" className="btn-ghost">Back to app</a>
+        <div className="flex gap-2">
+          <a href="/admin/blog" className="btn-ghost">Blog</a>
+          <a href="/dashboard" className="btn-ghost">Back to app</a>
+        </div>
       </div>
 
       <AiCheck />

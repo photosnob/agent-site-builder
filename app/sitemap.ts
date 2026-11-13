@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { appUrl } from "@/lib/siteUrls";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getPublishedPlatformPosts } from "@/lib/blog/platform";
 
 export const revalidate = 3600;
 
@@ -12,6 +13,10 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const app = appUrl();
   const entries: MetadataRoute.Sitemap = [{ url: `${app}/`, priority: 1 }];
+  // Launch & List's own blog.
+  const platformPosts = await getPublishedPlatformPosts(1000);
+  entries.push({ url: `${app}/blog`, lastModified: platformPosts[0]?.updated_at, priority: 0.7 });
+  for (const p of platformPosts) entries.push({ url: `${app}/blog/${p.slug}`, lastModified: p.updated_at, priority: 0.6 });
   if (process.env.NEXT_PUBLIC_ROOT_DOMAIN || !process.env.NEXT_PUBLIC_SUPABASE_URL) return entries;
   try {
     const admin = createAdminClient();

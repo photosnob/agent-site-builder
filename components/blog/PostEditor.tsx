@@ -22,21 +22,25 @@ interface Post {
 
 const SIZE_LABEL = { small: "S", medium: "M", large: "L", full: "Full" } as const;
 
-async function uploadImage(siteId: string, original: File): Promise<string> {
+async function uploadImage(uploadUrl: string, original: File): Promise<string> {
   if (!original.type.startsWith("image/")) throw new Error("That file isn't an image.");
   const file = await prepareImage(original);
   if (file.size > 8_000_000) throw new Error("Images must be under 8 MB.");
   const fd = new FormData();
   fd.set("file", file);
   fd.set("kind", "other");
-  const res = await fetch(`/api/sites/${siteId}/assets`, { method: "POST", body: fd });
+  const res = await fetch(uploadUrl, { method: "POST", body: fd });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Upload failed");
   return data.asset.url as string;
 }
 
-export function PostEditor({ siteId, post: initial, publicBase, agentName = "", canonicalBase }: { siteId: string; post: Post; publicBase: string; agentName?: string; canonicalBase?: string }) {
+/** Where the editor saves. Defaults to the agent's own site; the admin blog passes its own. */
+export interface PostEndpoints { post: string; upload: string; back: string }
+
+export function PostEditor({ siteId, post: initial, publicBase, agentName = "", canonicalBase, endpoints }: { siteId?: string; post: Post; publicBase: string; agentName?: string; canonicalBase?: string; endpoints?: PostEndpoints }) {
   const router = useRouter();
+  const api: PostEndpoints = endpoints ?? { post: `/api/sites/${siteId}/posts/${initial.id}`, upload: `/api/sites/${siteId}/assets`, back: "/dashboard/blog" };
   const [post, setPost] = useState(initial);
   const [meta, setMeta] = useState({
     title: initial.title === "Untitled post" ? "" : initial.title,
@@ -98,7 +102,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
           }
           return false;
         }
-        files.forEach((f) => uploadImage(siteId, f).then((src) => editorRef.current?.chain().focus().insertFigure({ src }).run()).catch(onUploadError));
+        files.forEach((f) => uploadImage(api.upload, f).then((src) => editorRef.current?.chain().focus().insertFigure({ src }).run()).catch(onUploadError));
         return true;
       },
       handleDrop: (_view, event, _slice, moved) => {
@@ -106,7 +110,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
         if (!files.length) return false;
         event.preventDefault();
-        files.forEach((f) => uploadImage(siteId, f).then((src) => editorRef.current?.chain().focus().insertFigure({ src }).run()).catch(onUploadError));
+        files.forEach((f) => uploadImage(api.upload, f).then((src) => editorRef.current?.chain().focus().insertFigure({ src }).run()).catch(onUploadError));
         return true;
       },
     },
@@ -120,7 +124,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
       if (!editor) return false;
       setBusy(label); setMessage(null);
       try {
-        const res = await fetch(`/api/sites/${siteId}/posts/${post.id}`, {
+        const res = await fetch(api.post, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -151,7 +155,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         setBusy(null);
       }
     },
-    [editor, meta, post.id, router, siteId],
+    [editor, meta, router, api.post],
   );
 
   // Cmd/Ctrl+S saves; warn before leaving with unsaved changes.
@@ -181,7 +185,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
     <div className="min-h-screen bg-stone-50">
       <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-5 py-3">
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/dashboard/blog" className="font-semibold text-stone-600 hover:text-stone-900">← All posts</Link>
+          <Link href={api.back} className="font-semibold text-stone-600 hover:text-stone-900">← All posts</Link>
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isPublished ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
             {isPublished ? "Published" : "Draft"}
           </span>
@@ -262,15 +266,15 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
             <button className="text-sm font-semibold text-red-700 hover:underline" disabled={!!busy} onClick={async () => {
               if (!confirm("Delete this post? This can't be undone.")) return;
               setBusy("delete");
-              const res = await fetch(`/api/sites/${siteId}/posts/${post.id}`, { method: "DELETE" });
-              if (res.ok) { setDirty(false); router.push("/dashboard/blog"); } else { setBusy(null); setMessage({ kind: "error", text: "Couldn't delete the post." }); }
+              const res = await fetch(api.post, { method: "DELETE" });
+              if (res.ok) { setDirty(false); router.push(api.back); } else { setBusy(null); setMessage({ kind: "error", text: "Couldn't delete the post." }); }
             }}>Delete post</button>
           </div>
         </section>
       )}
 
       <main className="mx-auto max-w-3xl px-5 pb-24 pt-8">
-        <CoverImage siteId={siteId} value={meta.coverImage} onChange={(v) => setField("coverImage", v)} onError={onUploadError} />
+        <CoverImage uploadUrl={api.upload} value={meta.coverImage} onChange={(v) => setField("coverImage", v)} onError={onUploadError} />
         <textarea
           value={meta.title}
           onChange={(e) => setField("title", e.target.value.replace(/\n/g, ""))}
@@ -291,7 +295,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
             e.target.value = "";
             if (!f || !editor) return;
             setBusy("upload");
-            try { editor.chain().focus().insertFigure({ src: await uploadImage(siteId, f) }).run(); } catch (err) { onUploadError(err); } finally { setBusy(null); }
+            try { editor.chain().focus().insertFigure({ src: await uploadImage(api.upload, f) }).run(); } catch (err) { onUploadError(err); } finally { setBusy(null); }
           }}
         />
         {busy === "upload" && <p className="mt-2 text-sm text-stone-500">Uploading image…</p>}
@@ -443,12 +447,12 @@ function TB({ active, disabled, onClick, title, children }: { active?: boolean; 
 }
 const Sep = () => <span className="mx-0.5 h-5 w-px bg-stone-200" />;
 
-function CoverImage({ siteId, value, onChange, onError }: { siteId: string; value: string | null; onChange: (v: string | null) => void; onError: (e: unknown) => void }) {
+function CoverImage({ uploadUrl, value, onChange, onError }: { uploadUrl: string; value: string | null; onChange: (v: string | null) => void; onError: (e: unknown) => void }) {
   const [busy, setBusy] = useState(false);
   const pick = async (f?: File) => {
     if (!f) return;
     setBusy(true);
-    try { onChange(await uploadImage(siteId, f)); } catch (e) { onError(e); } finally { setBusy(false); }
+    try { onChange(await uploadImage(uploadUrl, f)); } catch (e) { onError(e); } finally { setBusy(false); }
   };
   if (value)
     return (
