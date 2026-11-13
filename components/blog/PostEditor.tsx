@@ -58,6 +58,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
   // How the post looked when this editing session started, for "Revert".
   const sessionStart = useRef({ meta: snapshotMeta(initial), content: initial.content, status: initial.status });
   const savedThisSession = useRef(false);
+  const deleted = useRef(false);
   // After a failed autosave, wait for the next edit before trying again.
   const autosaveFailedAt = useRef(-1);
   const backupKey = `ll-post-backup:${initial.id}`;
@@ -184,7 +185,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
   const latest = useRef({ meta, dirty, isPublished });
   latest.current = { meta, dirty, isPublished };
   const writeBackup = useCallback(() => {
-    if (!editorRef.current || !latest.current.dirty) return;
+    if (deleted.current || !editorRef.current || !latest.current.dirty) return;
     try {
       localStorage.setItem(backupKey, JSON.stringify({ at: Date.now(), meta: latest.current.meta, content: editorRef.current.getJSON() }));
     } catch { /* storage full or blocked; the server autosave still runs for drafts */ }
@@ -214,7 +215,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
 
   // Leaving the page (back button, link, closing the tab): back up now, and push drafts to the server.
   const flush = useCallback(() => {
-    if (!latest.current.dirty || !editorRef.current) return;
+    if (deleted.current || !latest.current.dirty || !editorRef.current) return;
     writeBackup();
     if (latest.current.isPublished) return;
     const m = latest.current.meta;
@@ -248,6 +249,22 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
       return next;
     });
     markChanged();
+  };
+
+  const deletePost = async () => {
+    const name = meta.title.trim() || "this post";
+    const msg = isPublished
+      ? `Delete “${name}”? It's live, so it will disappear from the blog right away. This can't be undone.`
+      : `Delete the draft “${name}”? This can't be undone.`;
+    if (!confirm(msg)) return;
+    setBusy("delete");
+    const res = await fetch(api.post, { method: "DELETE" });
+    if (!res.ok) { setBusy(null); setMessage({ kind: "error", text: "Couldn't delete the post." }); return; }
+    deleted.current = true; // stop the leave-page autosave from recreating it
+    clearBackup(backupKey);
+    setDirty(false);
+    router.push(api.back);
+    router.refresh();
   };
 
   // Undo the whole editing session: content, settings and publish state go back to how they were on open.
@@ -291,6 +308,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         <div className="flex gap-2">
           {sessionChanged && <button className="btn-ghost" disabled={!!busy} onClick={revert} title="Undo everything changed since you opened this post">Revert</button>}
           <button className="btn-ghost" onClick={() => setShowSettings((s) => !s)}>Settings</button>
+          <button className="btn-ghost !text-red-700" disabled={!!busy} onClick={deletePost} title="Delete this post">{busy === "delete" ? "Deleting…" : "Delete"}</button>
           {isPublished && <a className="btn-ghost" href={liveUrl} target="_blank">View ↗</a>}
           <button className="btn-ghost" disabled={!!busy || !dirty} onClick={() => save()}>Save</button>
           {isPublished ? (
@@ -369,12 +387,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
             Show a table of contents (built from your headings)
           </label>
           <div className="border-t border-stone-100 pt-4">
-            <button className="text-sm font-semibold text-red-700 hover:underline" disabled={!!busy} onClick={async () => {
-              if (!confirm("Delete this post? This can't be undone.")) return;
-              setBusy("delete");
-              const res = await fetch(api.post, { method: "DELETE" });
-              if (res.ok) { setDirty(false); router.push(api.back); } else { setBusy(null); setMessage({ kind: "error", text: "Couldn't delete the post." }); }
-            }}>Delete post</button>
+            <button className="text-sm font-semibold text-red-700 hover:underline" disabled={!!busy} onClick={deletePost}>Delete post</button>
           </div>
         </section>
       )}

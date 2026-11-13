@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { NewPostButton } from "@/components/blog/NewPostButton";
+import { PostList, type PostListItem } from "@/components/blog/PostList";
 import { DashNav } from "@/components/app/DashNav";
 import { publicSiteUrl } from "@/lib/siteUrls";
 
@@ -35,20 +35,7 @@ export default async function BlogDashboard() {
       {site.status !== "live" && (
         <p className="mt-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Publish your site first. Blog posts appear once the site is live.</p>
       )}
-      <div className="mt-8 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
-        {(posts ?? []).length === 0 && <p className="p-8 text-center text-sm text-stone-500">No posts yet. Neighborhood guides and market updates are a great place to start.</p>}
-        {(posts ?? []).map((p) => (
-          <Link key={p.id} href={`/dashboard/blog/${p.id}`} className="flex items-center justify-between gap-4 p-4 hover:bg-stone-50">
-            <div className="min-w-0">
-              <p className="truncate font-medium">{p.title}</p>
-              <p className="text-xs text-stone-500">/blog/{p.slug} · edited {new Date(p.updated_at).toLocaleDateString()}</p>
-            </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${p.status === "published" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
-              {p.status === "published" ? "Published" : "Draft"}
-            </span>
-          </Link>
-        ))}
-      </div>
+      <PostList posts={(posts ?? []) as PostListItem[]} apiBase={`/api/sites/${site.id}/posts`} editBase="/dashboard/blog" empty="No posts yet. Neighborhood guides and market updates are a great place to start." />
     </main>
     </>
   );

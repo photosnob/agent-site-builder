@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NewPostButton } from "@/components/blog/NewPostButton";
+import { PostList, type PostListItem } from "@/components/blog/PostList";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 
 export const dynamic = "force-dynamic";
@@ -37,20 +38,7 @@ export default async function AdminBlog() {
           Couldn&apos;t load posts. Run <code>supabase/migrations/0009_platform_blog.sql</code> in the Supabase SQL editor first.
         </p>
       )}
-      <div className="mt-8 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
-        {!error && (posts ?? []).length === 0 && <p className="p-8 text-center text-sm text-stone-500">No posts yet. Write the first one for launchandlist.com/blog.</p>}
-        {(posts ?? []).map((p) => (
-          <Link key={p.id} href={`/admin/blog/${p.id}`} className="flex items-center justify-between gap-4 p-4 hover:bg-stone-50">
-            <div className="min-w-0">
-              <p className="truncate font-medium">{p.title}</p>
-              <p className="text-xs text-stone-500">/blog/{p.slug} · edited {new Date(p.updated_at).toLocaleDateString()}</p>
-            </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${p.status === "published" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
-              {p.status === "published" ? "Published" : "Draft"}
-            </span>
-          </Link>
-        ))}
-      </div>
+      <PostList posts={(posts ?? []) as PostListItem[]} apiBase="/api/admin/posts" editBase="/admin/blog" empty={error ? "" : "No posts yet. Write the first one for launchandlist.com/blog."} />
     </main>
   );
 }
