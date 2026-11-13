@@ -5,6 +5,7 @@ import { CATEGORY_LABEL, FEATURES, FEATURE_LABEL, type Report } from "@/lib/ai/r
 import type { AiSettings } from "@/lib/ai/usageShared";
 import { AiCheck } from "./AiCheck";
 import { ScanCheck } from "./ScanCheck";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 
 // Categorical slots in fixed order (validated for colorblind separation).
 const SERIES_COLOR: Record<(typeof FEATURES)[number], string> = { edit: "#2a78d6", generate: "#eb6834", import_extract: "#1baf7a" };
@@ -37,6 +38,7 @@ export function AdminDashboard({ report, settings, model }: { report: Report; se
         <div className="flex gap-2">
           <a href="/admin/blog" className="btn-ghost">Blog</a>
           <a href="/dashboard" className="btn-ghost">Back to app</a>
+          <ProfileMenu />
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandFonts, Wordmark } from "@/components/marketing/Brand";
+import { ProfileMenu } from "./ProfileMenu";
 
 const LINKS = [
   { href: "/dashboard", label: "Site" },
@@ -24,7 +25,10 @@ export function DashNav({ active, liveUrl, right }: { active: string; liveUrl?: 
         </nav>
         {liveUrl && <a href={liveUrl} target="_blank" className="ml-2 text-sm text-stone-500 underline">View live site ↗</a>}
       </div>
-      {right && <div className="flex gap-2">{right}</div>}
+      <div className="flex items-center gap-2">
+        {right}
+        <ProfileMenu links={[{ href: "/dashboard/settings", label: "Settings" }]} />
+      </div>
     </header>
   );
 }

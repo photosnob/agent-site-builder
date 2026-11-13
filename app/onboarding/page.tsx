@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { Onboarding } from "@/components/app/Onboarding";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { getAssets } from "@/lib/sites";
 import type { SiteRow } from "@/lib/types";
 
@@ -13,5 +14,10 @@ export default async function OnboardingPage() {
   const site = data as SiteRow | null;
   if (site && site.onboarding_step >= 6) redirect("/dashboard");
   const assets = site ? await getAssets(site.id) : [];
-  return <Onboarding site={site} email={user.email ?? ""} initialAssets={assets} />;
+  return (
+    <>
+      <div className="flex justify-end px-6 pt-4"><ProfileMenu /></div>
+      <Onboarding site={site} email={user.email ?? ""} initialAssets={assets} />
+    </>
+  );
 }

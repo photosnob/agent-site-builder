@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NewPostButton } from "@/components/blog/NewPostButton";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Blog · Admin" };
@@ -28,6 +29,7 @@ export default async function AdminBlog() {
           <Link href="/admin" className="btn-ghost">AI usage</Link>
           <a href="/blog" target="_blank" className="btn-ghost">View blog ↗</a>
           <NewPostButton createUrl="/api/admin/posts" editBase="/admin/blog" />
+          <ProfileMenu links={[{ href: "/dashboard", label: "Dashboard" }]} />
         </div>
       </div>
       {error && (

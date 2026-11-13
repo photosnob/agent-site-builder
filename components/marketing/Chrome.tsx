@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BRAND, BrandFonts, Logo, Wordmark } from "./Brand";
+import { AccountButton } from "./AccountButton";
 
 /** Shared page frame for launchandlist.com pages (home, blog): fonts, colors, header, footer. */
 export function MarketingFrame({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,7 @@ export function MarketingHeader() {
       </nav>
       <div className="flex items-center gap-2">
         <Link href="/blog" className="px-2 py-3 text-[15px] font-medium hover:opacity-70 md:hidden">blog.</Link>
-        <Link href="/login" className="px-2 py-3 text-[15px] font-medium hover:opacity-70">sign in.</Link>
+        <AccountButton />
         <Link href="/signup" className="rounded-[2px] px-5 py-3 text-[15px] font-semibold" style={{ background: BRAND.evergreen, color: BRAND.ivory }}>launch my site.</Link>
       </div>
     </header>

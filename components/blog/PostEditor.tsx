@@ -14,10 +14,11 @@ import { prepareImage } from "@/components/manage/resize";
 import { IMAGE_SIZES, postSlug, type PostDoc } from "@/lib/blog/content";
 import type { Finding } from "@/lib/guardrails/fairHousing";
 import { CharCount, SearchPreview } from "@/components/seo/SearchPreview";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 
 interface Post {
   id: string; slug: string; title: string; excerpt: string | null; meta_description: string | null; seo_title?: string | null;
-  cover_image: string | null; content: PostDoc; show_toc: boolean; status: "draft" | "published"; published_at: string | null;
+  cover_image: string | null; content: PostDoc; show_toc: boolean; status: "draft" | "published"; published_at: string | null; updated_at: string;
 }
 
 const SIZE_LABEL = { small: "S", medium: "M", large: "L", full: "Full" } as const;
@@ -42,21 +43,24 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
   const router = useRouter();
   const api: PostEndpoints = endpoints ?? { post: `/api/sites/${siteId}/posts/${initial.id}`, upload: `/api/sites/${siteId}/assets`, back: "/dashboard/blog" };
   const [post, setPost] = useState(initial);
-  const [meta, setMeta] = useState({
-    title: initial.title === "Untitled post" ? "" : initial.title,
-    slug: initial.slug,
-    excerpt: initial.excerpt ?? "",
-    metaDescription: initial.meta_description ?? "",
-    seoTitle: initial.seo_title ?? "",
-    coverImage: initial.cover_image,
-    showToc: initial.show_toc,
-  });
+  const [meta, setMeta] = useState<Meta>(() => snapshotMeta(initial));
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [findings, setFindings] = useState<{ list: Finding[]; needsAck: boolean } | null>(null);
   const [ack, setAck] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [restored, setRestored] = useState<string | null>(null);
+  const [edits, setEdits] = useState(0);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  // Bumped on every edit, so a save that finishes after newer typing doesn't mark the post clean.
+  const changeSeq = useRef(0);
+  // How the post looked when this editing session started, for "Revert".
+  const sessionStart = useRef({ meta: snapshotMeta(initial), content: initial.content, status: initial.status });
+  const savedThisSession = useRef(false);
+  // After a failed autosave, wait for the next edit before trying again.
+  const autosaveFailedAt = useRef(-1);
+  const backupKey = `ll-post-backup:${initial.id}`;
   const slugTouched = useRef(!initial.slug.startsWith("untitled-"));
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -114,7 +118,7 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         return true;
       },
     },
-    onUpdate: () => setDirty(true),
+    onUpdate: () => markChanged(),
   });
   const editorRef = useRef<Editor | null>(null);
   editorRef.current = editor;
@@ -122,7 +126,10 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
   const save = useCallback(
     async (extra: Record<string, unknown> = {}, label = "save") => {
       if (!editor) return false;
-      setBusy(label); setMessage(null);
+      const quiet = label === "autosave";
+      const seq = changeSeq.current;
+      setBusy(label);
+      if (!quiet) setMessage(null);
       try {
         const res = await fetch(api.post, {
           method: "PATCH",
@@ -142,32 +149,97 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
         const data = await res.json();
         if (!res.ok) {
           if (data.findings) { setFindings({ list: data.findings, needsAck: Boolean(data.needsAck) }); setAck(false); }
-          setMessage({ kind: "error", text: data.error });
+          if (quiet) autosaveFailedAt.current = seq;
+          setMessage({ kind: "error", text: quiet ? `Couldn't autosave: ${data.error}` : data.error });
           return false;
         }
         setPost(data.post);
-        setDirty(false);
+        savedThisSession.current = true;
+        setSavedAt(new Date());
+        const clean = changeSeq.current === seq;
+        setDirty(!clean);
+        if (clean) clearBackup(backupKey);
         setFindings(null);
-        setMessage({ kind: "ok", text: label === "publish" ? "Published." : label === "unpublish" ? "Moved back to draft." : "Saved." });
-        router.refresh();
+        if (!quiet) {
+          setMessage({ kind: "ok", text: label === "publish" ? "Published." : label === "unpublish" ? "Moved back to draft." : label === "revert" ? "Reverted to how it was when you opened it." : "Saved." });
+          router.refresh();
+        }
         return true;
       } finally {
         setBusy(null);
       }
     },
-    [editor, meta, router, api.post],
+    [editor, meta, router, api.post, backupKey],
   );
 
-  // Cmd/Ctrl+S saves; warn before leaving with unsaved changes.
+  function markChanged() {
+    changeSeq.current += 1;
+    setEdits((n) => n + 1);
+    setDirty(true);
+  }
+
+  const isPublished = post.status === "published";
+
+  // Always-current copy of the unsaved work, for the backup and for saving on the way out.
+  const latest = useRef({ meta, dirty, isPublished });
+  latest.current = { meta, dirty, isPublished };
+  const writeBackup = useCallback(() => {
+    if (!editorRef.current || !latest.current.dirty) return;
+    try {
+      localStorage.setItem(backupKey, JSON.stringify({ at: Date.now(), meta: latest.current.meta, content: editorRef.current.getJSON() }));
+    } catch { /* storage full or blocked; the server autosave still runs for drafts */ }
+  }, [backupKey]);
+
+  // On open: bring back work that never reached the server (back button, closed tab, crash).
+  useEffect(() => {
+    if (!editor) return;
+    const backup = readBackup(backupKey);
+    if (!backup || backup.at <= Date.parse(initial.updated_at)) { clearBackup(backupKey); return; }
+    editor.commands.setContent(backup.content, { emitUpdate: false });
+    setMeta(backup.meta);
+    markChanged();
+    setRestored(new Date(backup.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
+  // Every change is backed up on this device right away. Drafts also autosave to the
+  // server a moment after you stop typing; published posts wait for "Update" so
+  // half-finished edits never go live.
+  useEffect(() => {
+    if (!dirty) return;
+    const backup = setTimeout(writeBackup, 300);
+    const server = !isPublished && !busy && autosaveFailedAt.current !== changeSeq.current ? setTimeout(() => save({}, "autosave"), 2000) : undefined;
+    return () => { clearTimeout(backup); if (server) clearTimeout(server); };
+  }, [dirty, meta, isPublished, busy, save, writeBackup, edits]);
+
+  // Leaving the page (back button, link, closing the tab): back up now, and push drafts to the server.
+  const flush = useCallback(() => {
+    if (!latest.current.dirty || !editorRef.current) return;
+    writeBackup();
+    if (latest.current.isPublished) return;
+    const m = latest.current.meta;
+    fetch(api.post, {
+      method: "PATCH", keepalive: true, headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: m.title.trim() || "Untitled post", slug: m.slug, excerpt: m.excerpt || null, metaDescription: m.metaDescription || null, seoTitle: m.seoTitle || null, coverImage: m.coverImage, showToc: m.showToc, content: editorRef.current.getJSON() }),
+    }).then((r) => { if (r.ok) clearBackup(backupKey); }).catch(() => {});
+  }, [api.post, backupKey, writeBackup]);
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onHide); flush(); };
+  }, [flush]);
+
+  // Cmd/Ctrl+S saves; still warn before closing a published post with edits that aren't live yet.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save(isPublished ? { acknowledgeWarnings: ack } : {}, isPublished ? "update" : "save"); }
     };
-    const onLeave = (e: BeforeUnloadEvent) => { if (dirty) e.preventDefault(); };
+    const onLeave = (e: BeforeUnloadEvent) => { if (dirty && isPublished) e.preventDefault(); };
     window.addEventListener("keydown", onKey);
     window.addEventListener("beforeunload", onLeave);
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("beforeunload", onLeave); };
-  }, [dirty, save]);
+  }, [dirty, isPublished, ack, save]);
 
   const setField = <K extends keyof typeof meta>(k: K, v: (typeof meta)[K]) => {
     setMeta((m) => {
@@ -175,10 +247,31 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
       if (k === "title" && !slugTouched.current && post.status === "draft") next.slug = postSlug(String(v));
       return next;
     });
-    setDirty(true);
+    markChanged();
   };
 
-  const isPublished = post.status === "published";
+  // Undo the whole editing session: content, settings and publish state go back to how they were on open.
+  const sessionChanged = dirty || savedThisSession.current || restored !== null;
+  const revert = async () => {
+    if (!editor || !confirm("Undo everything you changed since you opened this post? It goes back to exactly how it was.")) return;
+    const start = sessionStart.current;
+    editor.commands.setContent(start.content, { emitUpdate: false });
+    setMeta(start.meta);
+    slugTouched.current = !start.meta.slug.startsWith("untitled-");
+    setRestored(null);
+    if (!savedThisSession.current) {
+      clearBackup(backupKey);
+      changeSeq.current += 1;
+      setDirty(false);
+      setMessage({ kind: "ok", text: "Reverted to how it was when you opened it." });
+      return;
+    }
+    await save({
+      title: start.meta.title.trim() || "Untitled post", slug: start.meta.slug, excerpt: start.meta.excerpt || null,
+      metaDescription: start.meta.metaDescription || null, seoTitle: start.meta.seoTitle || null, coverImage: start.meta.coverImage,
+      showToc: start.meta.showToc, content: start.content, status: start.status, acknowledgeWarnings: true,
+    }, "revert");
+  };
   const liveUrl = `${publicBase}/blog/${post.slug}`;
 
   return (
@@ -189,9 +282,14 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isPublished ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
             {isPublished ? "Published" : "Draft"}
           </span>
-          <span className="text-stone-400">{busy === "save" ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}</span>
+          <span className="text-stone-400" aria-live="polite">
+            {busy === "save" || busy === "autosave" ? "Saving…"
+              : dirty ? (isPublished ? "Edits saved on this device · click Update to publish them" : "Unsaved changes")
+              : savedAt ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "All changes saved"}
+          </span>
         </div>
         <div className="flex gap-2">
+          {sessionChanged && <button className="btn-ghost" disabled={!!busy} onClick={revert} title="Undo everything changed since you opened this post">Revert</button>}
           <button className="btn-ghost" onClick={() => setShowSettings((s) => !s)}>Settings</button>
           {isPublished && <a className="btn-ghost" href={liveUrl} target="_blank">View ↗</a>}
           <button className="btn-ghost" disabled={!!busy || !dirty} onClick={() => save()}>Save</button>
@@ -205,9 +303,17 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
               {busy === "publish" ? "Publishing…" : "Publish"}
             </button>
           )}
+          <ProfileMenu />
         </div>
       </header>
 
+      {restored && (
+        <div className="mx-auto max-w-3xl px-5 pt-4">
+          <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900">
+            We brought back unsaved changes from {restored}. Use <strong>Revert</strong> to throw them away.
+          </p>
+        </div>
+      )}
       {(message || findings) && (
         <div className="mx-auto max-w-3xl px-5 pt-4">
           {message && <p className={`rounded-lg p-3 text-sm ${message.kind === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{message.text}</p>}
@@ -295,7 +401,12 @@ export function PostEditor({ siteId, post: initial, publicBase, agentName = "", 
             e.target.value = "";
             if (!f || !editor) return;
             setBusy("upload");
-            try { editor.chain().focus().insertFigure({ src: await uploadImage(api.upload, f) }).run(); } catch (err) { onUploadError(err); } finally { setBusy(null); }
+            // Upload first, then build the insert from the editor's current state. Starting the
+            // chain before the await applied a stale transaction ("Applying a mismatched transaction").
+            try {
+              const src = await uploadImage(api.upload, f);
+              (editorRef.current ?? editor).chain().focus().insertFigure({ src }).run();
+            } catch (err) { onUploadError(err); } finally { setBusy(null); }
           }}
         />
         {busy === "upload" && <p className="mt-2 text-sm text-stone-500">Uploading image…</p>}
@@ -471,4 +582,23 @@ function CoverImage({ uploadUrl, value, onChange, onError }: { uploadUrl: string
       <input type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
     </label>
   );
+}
+
+type Meta = { title: string; slug: string; excerpt: string; metaDescription: string; seoTitle: string; coverImage: string | null; showToc: boolean };
+
+function snapshotMeta(p: Post): Meta {
+  return {
+    title: p.title === "Untitled post" ? "" : p.title, slug: p.slug, excerpt: p.excerpt ?? "", metaDescription: p.meta_description ?? "",
+    seoTitle: p.seo_title ?? "", coverImage: p.cover_image, showToc: p.show_toc,
+  };
+}
+
+function readBackup(key: string): { at: number; meta: Meta; content: PostDoc } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || "null");
+    return v && typeof v.at === "number" && v.meta && v.content?.type === "doc" ? v : null;
+  } catch { return null; }
+}
+function clearBackup(key: string) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
 }
