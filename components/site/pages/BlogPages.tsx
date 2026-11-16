@@ -1,3 +1,4 @@
+import { SiteTracking } from "../SiteTracking";
 import { notFound } from "next/navigation";
 import { redirectOrNotFound } from "@/lib/redirects.server";
 import type { Metadata } from "next";
@@ -63,6 +64,7 @@ export async function BlogIndexPage({ slug, hosted }: { slug: string; hosted: bo
   return (
     <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
+      <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={blogIndexGraph(ld, posts)} />
       <div className="site-container py-12 md:py-16">
         <h1 className="site-heading text-4xl sm:text-5xl">Blog</h1>
@@ -134,6 +136,7 @@ export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; p
   return (
     <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
+      <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={graphData} />
       <article className="site-container py-10 md:py-14">
         <div className={showToc ? "grid gap-12 lg:grid-cols-[minmax(0,1fr)_240px]" : ""}>

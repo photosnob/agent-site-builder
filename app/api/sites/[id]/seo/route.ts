@@ -28,7 +28,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const blocking = lintFairHousing(`${seo.title ?? ""}\n${seo.description ?? ""}`).filter((f) => f.severity === "block");
   if (blocking.length) return fail(`Fair Housing: ${blocking[0].message} ("${blocking[0].match}")`, 422);
 
-  const { error } = await createAdminClient().from("sites").update({ seo }).eq("id", ctx.site.id);
+  // Tracking IDs are saved separately (Settings → Tracking); keep them.
+  const tracking = (ctx.site.seo as { tracking?: unknown } | null)?.tracking;
+  const { error } = await createAdminClient().from("sites").update({ seo: tracking ? { ...seo, tracking } : seo }).eq("id", ctx.site.id);
   if (error) return fail(error.message, 500);
   revalidateSite(ctx.site.slug, "", "/blog");
   return json({ ok: true, seo });

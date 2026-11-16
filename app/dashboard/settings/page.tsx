@@ -7,6 +7,7 @@ import { canonicalOrigin } from "@/lib/siteUrls";
 import { defaultDescription, defaultTitle, llmsTxt } from "@/lib/seo/files";
 import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
+import { TrackingSettings } from "@/components/seo/TrackingSettings";
 import { DashNav } from "@/components/app/DashNav";
 import { LogoSettings } from "@/components/seo/LogoSettings";
 import { HeadshotSettings } from "@/components/seo/HeadshotSettings";
@@ -69,6 +70,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           bioPlaceholder={briefBio((() => { const a = content?.blocks.find((b) => b.type === "about"); return a?.type === "about" ? a.props.body : site.agent.bio; })()) || "e.g. Jane helps buyers and sellers across Willow Glen with a calm, clear process."}
         />
       </div>
+      <div className="mt-6"><TrackingSettings siteId={site.id} initial={(seo as SiteSeo).tracking ?? {}} /></div>
       <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-5">
         <div>
           <h2 className="font-semibold">Redirects</h2>

@@ -1,3 +1,4 @@
+import { SiteTracking } from "../SiteTracking";
 import { redirectOrNotFound } from "@/lib/redirects.server";
 import type { Metadata } from "next";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
@@ -43,6 +44,7 @@ export async function SubPage({ slug, pageSlug, hosted }: { slug: string; pageSl
   const pageType = page.kind === "team" ? ["WebPage", "AboutPage"] : page.kind === "reviews" ? ["WebPage", "CollectionPage"] : "WebPage";
   return (
     <>
+      <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={graph(
         websiteNode(ld),
         agentNode(ld),

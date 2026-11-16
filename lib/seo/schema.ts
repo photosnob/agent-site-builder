@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SiteTracking } from "../tracking";
 
 /** Agent-editable SEO overrides. Every field is optional; empty means "use the default". */
 export const SiteSeo = z.object({
@@ -10,6 +11,8 @@ export const SiteSeo = z.object({
   googleVerification: z.string().trim().max(100).regex(/^[A-Za-z0-9_-]*$/, "Paste only the code inside content=\"…\"").optional(),
   // Custom llms.txt. Served as plain text; empty means auto-generate.
   llmsTxt: z.string().max(50_000).optional(),
+  // Analytics/ad IDs, managed in Settings → Tracking (saved by its own route).
+  tracking: SiteTracking.optional(),
 });
 export type SiteSeo = z.infer<typeof SiteSeo>;
 

@@ -1,3 +1,4 @@
+import { SiteTracking } from "../SiteTracking";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
@@ -54,6 +55,7 @@ export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean
   });
   return (
     <>
+      <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={jsonLd} />
       <SiteRenderer
         content={site.published_content}
