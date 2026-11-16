@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlatformAnalytics } from "@/components/PlatformAnalytics";
 import { BRAND, BrandFonts } from "@/components/marketing/Brand";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing/Chrome";
 import { TemplateThumb } from "@/components/app/TemplateThumb";
@@ -54,6 +55,7 @@ export default function Home() {
   return (
     <div className="min-h-screen" style={{ background: BRAND.ivory, color: BRAND.evergreen, fontFamily: BRAND.sans }}>
       <BrandFonts />
+      <PlatformAnalytics />
       <style>{`.ll a:focus-visible,.ll button:focus-visible,.ll input:focus-visible{outline:2px solid ${BRAND.evergreen};outline-offset:3px}`}</style>
       <div className="ll">
         <MarketingHeader />
