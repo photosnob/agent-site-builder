@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { SiteRenderer } from "@/components/site/SiteRenderer";
 import { getOwnedSite } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getAssets, headshotOf } from "@/lib/sites";
 import { getSiteData } from "@/lib/siteData";
 import { publicSiteUrl } from "@/lib/siteUrls";
@@ -17,7 +19,16 @@ export default async function Preview({
 }) {
   const { siteId } = await params;
   const { rev, page } = await searchParams;
-  const { site, supabase } = await getOwnedSite(siteId);
+  const owned = await getOwnedSite(siteId);
+  let site = owned.site;
+  let supabase: Pick<typeof owned.supabase, "from"> = owned.supabase;
+  // Admins (ADMIN_EMAILS) can look at any agent's draft, read-only.
+  if (!site && owned.user && isAdminEmail(owned.user.email)) {
+    const admin = createAdminClient();
+    const { data } = await admin.from("sites").select("*").eq("id", siteId).maybeSingle();
+    site = data as typeof site;
+    supabase = admin;
+  }
   if (!site) notFound();
 
   let content = site.content as AnyContent | null;
