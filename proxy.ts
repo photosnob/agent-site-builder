@@ -15,6 +15,42 @@ const SEO_FILES: Record<string, string> = {
   "/blog/rss.xml": "/seo/rss",
 };
 
+// ---- Custom domain lookups (cached per server instance for a minute) ----
+type Hit = { slug: string; domain: string | null; active: boolean } | null;
+const cache = new Map<string, { hit: Hit; exp: number }>();
+async function lookup(kind: "domain" | "slug", key: string): Promise<Hit> {
+  const k = `${kind}:${key}`;
+  const c = cache.get(k);
+  if (c && c.exp > Date.now()) return c.hit;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL, svc = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !svc) return null;
+  // www.x.com and x.com both find the site (Vercel normally redirects one to the other first).
+  const alt = key.startsWith("www.") ? key.slice(4) : `www.${key}`;
+  const filter = kind === "domain" ? `custom_domain=in.(${encodeURIComponent(`"${key}","${alt}"`)})` : `slug=eq.${encodeURIComponent(key)}`;
+  let hit: Hit = null;
+  try {
+    const res = await fetch(`${base}/rest/v1/sites?select=slug,custom_domain,domain_status&${filter}&limit=1`, {
+      headers: { apikey: svc, Authorization: `Bearer ${svc}` },
+      signal: AbortSignal.timeout(2500),
+    });
+    const rows = res.ok ? ((await res.json()) as { slug: string; custom_domain: string | null; domain_status: string | null }[]) : [];
+    if (rows[0]) hit = { slug: rows[0].slug, domain: rows[0].custom_domain, active: rows[0].domain_status === "active" };
+    if (!res.ok) return null; // don't cache errors
+  } catch { return null; }
+  cache.set(k, { hit, exp: Date.now() + (hit ? 60_000 : 30_000) });
+  if (cache.size > 5000) cache.delete(cache.keys().next().value!);
+  return hit;
+}
+
+function rewriteToSite(req: NextRequest, slug: string, pathname: string) {
+  const url = req.nextUrl.clone();
+  url.pathname = `/h/${slug}${SEO_FILES[pathname] ?? (pathname === "/" ? "" : pathname)}`;
+  return NextResponse.rewrite(url);
+}
+
+const isPlatformHost = (host: string) =>
+  APP_HOSTS.has(host) || host.endsWith(`.${ROOT}`) || host.endsWith(".vercel.app") || host.startsWith("localhost") || host.startsWith("127.0.0.1") || host === "";
+
 export async function proxy(req: NextRequest) {
   const host = (req.headers.get("host") || "").toLowerCase();
   const { pathname } = req.nextUrl;
@@ -23,13 +59,20 @@ export async function proxy(req: NextRequest) {
   if (!APP_HOSTS.has(host) && host.endsWith(`.${ROOT}`)) {
     const slug = host.slice(0, -(ROOT.length + 1));
     if (/^[a-z0-9-]{3,48}$/.test(slug) && !pathname.startsWith("/api/")) {
-      const url = req.nextUrl.clone();
-      url.pathname = `/h/${slug}${SEO_FILES[pathname] ?? (pathname === "/" ? "" : pathname)}`;
-      return NextResponse.rewrite(url);
+      // Once the agent's own domain is connected, send visitors (and Google) there instead.
+      const hit = await lookup("slug", slug);
+      if (hit?.active && hit.domain) return NextResponse.redirect(`https://${hit.domain}${pathname}${req.nextUrl.search}`, 308);
+      return rewriteToSite(req, slug, pathname);
     }
   }
-  // Custom domains: look up sites.custom_domain here (cache it at the edge) and
-  // rewrite the same way. Left out of the MVP; see README.
+
+  // 2) Agent's own domain (janedoe.com): same pages as the subdomain.
+  if (!isPlatformHost(host)) {
+    if (pathname.startsWith("/api/")) return NextResponse.next(); // lead forms etc. post here
+    const hit = await lookup("domain", host.replace(/:\d+$/, ""));
+    if (hit) return rewriteToSite(req, hit.slug, pathname);
+    return new NextResponse("This site isn't set up yet.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
 
   // Path-mode sites: /s/<slug>/sitemap.xml etc. (robots.txt only works at a host root).
   const pathSeo = pathname.match(/^\/s\/([a-z0-9-]{3,48})(\/sitemap\.xml|\/llms\.txt|\/blog\/rss\.xml)$/);

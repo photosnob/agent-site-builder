@@ -6,7 +6,7 @@ export async function getPublishedSiteBySlug(slug: string) {
   // Select only what the public page needs.
   const { data } = await admin
     .from("sites")
-    .select("id, slug, status, agent, published_content, published_theme, published_at, seo")
+    .select("id, slug, status, agent, published_content, published_theme, published_at, seo, custom_domain, domain_status")
     .eq("slug", slug)
     .eq("status", "live")
     .maybeSingle();

@@ -29,7 +29,7 @@ async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string):
   const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
   const about = site.published_content?.blocks.find((b) => b.type === "about");
   return {
-    origin: canonicalOrigin(slug),
+    origin: canonicalOrigin(site),
     agent: site.agent,
     content: site.published_content,
     seo: seoOf(site.seo),
@@ -48,7 +48,7 @@ const hasSection = (site: Awaited<ReturnType<typeof loadSite>>, type: string) =>
 export async function blogIndexMetadata(slug: string, hosted: boolean): Promise<Metadata> {
   const site = await getPublishedSiteBySlug(slug);
   if (!site) return {};
-  const origin = canonicalOrigin(slug, hosted);
+  const origin = canonicalOrigin(site, hosted);
   return {
     title: { absolute: `Blog | ${site.agent.name}` },
     description: `Market updates, neighborhood guides and advice from ${site.agent.name}.`,
@@ -97,7 +97,7 @@ export async function blogPostMetadata(slug: string, postSlug: string, hosted: b
   const post = await getPublishedPost(site.id, postSlug);
   if (!post) return {};
   const description = post.meta_description || post.excerpt || plainText(post.content).slice(0, 155);
-  const origin = canonicalOrigin(slug, hosted);
+  const origin = canonicalOrigin(site, hosted);
   const url = `${origin}/blog/${post.slug}`;
   // A custom SEO title is used exactly as written; otherwise "<post title> | <agent>".
   const title = post.seo_title || `${post.title} | ${site.agent.name}`;

@@ -12,7 +12,7 @@ export async function loadSeoSite(slug: string) {
   const parsed = SiteSeo.safeParse(site.seo ?? {});
   const seoSite: SeoSite = {
     slug,
-    origin: canonicalOrigin(slug),
+    origin: canonicalOrigin(site),
     agent: site.agent,
     content: site.published_content,
     seo: parsed.success ? parsed.data : {},

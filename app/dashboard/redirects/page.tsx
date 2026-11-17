@@ -14,7 +14,7 @@ export default async function Page() {
   const { data } = await supabase.from("sites").select("*").eq("owner_id", user.id).maybeSingle();
   const site = data as SiteRow | null;
   if (!site) redirect("/onboarding");
-  const live = site.status === "live" ? publicSiteUrl(site.slug) : null;
+  const live = site.status === "live" ? publicSiteUrl(site) : null;
   return (
     <>
       <DashNav active="/dashboard/settings" liveUrl={live} />

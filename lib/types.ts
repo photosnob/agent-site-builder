@@ -61,6 +61,7 @@ export interface SiteRow {
   published_content: SiteContent | null;
   published_theme: Theme | null;
   custom_domain: string | null;
+  domain_status?: "pending" | "active" | "error" | null;
   published_at: string | null;
   seo: SiteSeo | null;
   ai_daily_edit_limit?: number | null;

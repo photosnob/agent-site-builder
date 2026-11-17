@@ -16,8 +16,19 @@ export function appUrl() {
   return "";
 }
 
-/** The one public URL search engines should index (hosted subdomain whenever a root domain is set). */
-export function canonicalOrigin(slug: string, _hosted?: boolean) {
+/** A site, or just its slug. With a connected custom domain, that domain is the site's address. */
+export type SiteRef = string | { slug: string; custom_domain?: string | null; domain_status?: string | null };
+
+/** The agent's own domain, once it's connected and serving. */
+export function liveCustomDomain(site: SiteRef) {
+  return typeof site !== "string" && site.custom_domain && site.domain_status === "active" ? site.custom_domain : null;
+}
+
+/** The one public URL search engines should index: the custom domain if connected, else the hosted subdomain (or path). */
+export function canonicalOrigin(site: SiteRef, _hosted?: boolean) {
+  const custom = liveCustomDomain(site);
+  if (custom) return `https://${custom}`;
+  const slug = typeof site === "string" ? site : site.slug;
   const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
   if (root) return `${root.startsWith("lvh.me") || root.startsWith("localhost") ? "http" : "https"}://${slug}.${root}`;
   return `${appUrl()}/s/${slug}`;
@@ -35,7 +46,9 @@ export function revalidateSite(slug: string, ...subpaths: string[]) {
 }
 
 /** Where the agent's published site lives, for links from the dashboard. */
-export function publicSiteUrl(slug: string) {
+export function publicSiteUrl(site: SiteRef) {
+  if (liveCustomDomain(site)) return canonicalOrigin(site);
+  const slug = typeof site === "string" ? site : site.slug;
   const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
   return root ? canonicalOrigin(slug, true) : `/s/${slug}`;
 }

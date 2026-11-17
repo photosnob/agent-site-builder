@@ -23,7 +23,7 @@ export async function subPageMetadata(slug: string, pageSlug: string): Promise<M
   const header = page.published_content!.blocks.find((b) => b.type === "page-header");
   const description = page.meta_description || (header?.type === "page-header" ? header.props.intro : undefined) || `${page.title} with ${site.agent.name}`;
   const title = page.seo_title || `${page.title} | ${site.agent.name}`;
-  const url = `${canonicalOrigin(slug)}/${page.slug}`;
+  const url = `${canonicalOrigin(site)}/${page.slug}`;
   return {
     title: { absolute: title },
     description,
@@ -38,7 +38,7 @@ export async function SubPage({ slug, pageSlug, hosted }: { slug: string; pageSl
   if (!r) return redirectOrNotFound(slug, `/${pageSlug}`, hosted);
   const { site, page } = r;
   const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
-  const origin = canonicalOrigin(slug);
+  const origin = canonicalOrigin(site);
   const url = `${origin}/${page.slug}`;
   const ld = { origin, agent: site.agent, content: site.published_content, seo: seoOf(site.seo), headshot: headshotOf(assets) };
   const pageType = page.kind === "team" ? ["WebPage", "AboutPage"] : page.kind === "reviews" ? ["WebPage", "CollectionPage"] : "WebPage";

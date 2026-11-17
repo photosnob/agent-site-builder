@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   if (body.data.website) return json({ ok: true }); // bot: pretend success
 
   const admin = createAdminClient();
-  const { data: site } = await admin.from("sites").select("id, slug, owner_id, agent").eq("id", body.data.siteId).eq("status", "live").maybeSingle();
+  const { data: site } = await admin.from("sites").select("id, slug, owner_id, agent, custom_domain, domain_status").eq("id", body.data.siteId).eq("status", "live").maybeSingle();
   if (!site) return fail("Unknown site", 404);
 
   const { siteId, pagePath, website: _hp, ...rest } = body.data;
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       let to = agent.email;
       if (!to) to = (await admin.auth.admin.getUserById(site.owner_id)).data.user?.email ?? undefined;
       if (!to) return;
-      const live = publicSiteUrl(site.slug);
+      const live = publicSiteUrl(site);
       const msg = leadEmail(
         { name: rest.name, email: rest.email, phone: rest.phone, message: rest.message, intent: rest.intent, pagePath },
         { agentName: agent.name, siteUrl: live.startsWith("/") ? `${appUrl()}${live}` : live, dashboardUrl: `${appUrl()}/dashboard` },

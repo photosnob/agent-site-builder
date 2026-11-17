@@ -21,7 +21,7 @@ export default async function Page({ params }: { params: Promise<{ userId: strin
   const { data: au } = await admin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } }));
   if (!au?.user) notFound();
   const u = au.user;
-  const { data: site } = await admin.from("sites").select("id, slug, status, template, onboarding_step, published_at, created_at, agent, import_data").eq("owner_id", userId).maybeSingle();
+  const { data: site } = await admin.from("sites").select("id, slug, status, template, onboarding_step, published_at, created_at, agent, import_data, custom_domain, domain_status").eq("owner_id", userId).maybeSingle();
 
   const [pages, listings, posts, leads, edits, assets] = site ? await Promise.all([
     admin.from("site_pages").select("slug, title, enabled").eq("site_id", site.id).order("position"),
@@ -47,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ userId: strin
           <h1 className="text-2xl font-bold">{agent.name ?? u.email}</h1>
           <p className="text-sm text-stone-500">{u.email}</p>
         </div>
-        {site?.status === "live" && <a href={publicSiteUrl(site.slug)} target="_blank" rel="noreferrer" className="btn">View live site ↗</a>}
+        {site?.status === "live" && <a href={publicSiteUrl(site)} target="_blank" rel="noreferrer" className="btn">View live site ↗</a>}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -74,7 +74,7 @@ export default async function Page({ params }: { params: Promise<{ userId: strin
                 <p className="mb-1 font-semibold">Site</p>
                 <Fact k="Status" v={site.status === "live" ? `Live since ${fmt(site.published_at)}` : site.onboarding_step < 6 ? `Onboarding: ${STEP_LABELS[site.onboarding_step]}` : "Built, not published"} />
                 <Fact k="Template" v={<span className="capitalize">{site.template}</span>} />
-                <Fact k="Address" v={<a className="underline" href={publicSiteUrl(site.slug)} target="_blank" rel="noreferrer">{site.slug}</a>} />
+                <Fact k="Address" v={<a className="underline" href={publicSiteUrl(site)} target="_blank" rel="noreferrer">{site.slug}</a>} />
                 <Fact k="Listings" v={listings?.count ?? 0} />
                 <Fact k="Blog posts" v={`${published} published${(posts?.data?.length ?? 0) > published ? `, ${(posts?.data?.length ?? 0) - published} drafts` : ""}`} />
                 <Fact k="Leads" v={`${leads?.data?.length ?? 0}${leads?.data?.[0] ? ` (last ${fmt(leads.data[0].created_at)})` : ""}`} />

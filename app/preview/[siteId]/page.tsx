@@ -48,6 +48,6 @@ export default async function Preview({
   return (
     <SiteRenderer content={content} theme={theme} agent={site.agent} siteId={siteId} interactive={false} headshot={headshotOf(assets)}
       logo={assets.find((a) => a.kind === "logo")?.url} data={data}
-      hasBlog={data.posts.length > 0} blogHref={`${publicSiteUrl(site.slug)}/blog`} />
+      hasBlog={data.posts.length > 0} blogHref={`${publicSiteUrl(site)}/blog`} />
   );
 }

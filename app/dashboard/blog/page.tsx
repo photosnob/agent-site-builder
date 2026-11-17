@@ -17,11 +17,11 @@ export default async function BlogDashboard() {
     .select("id, slug, title, status, published_at, updated_at")
     .eq("site_id", site.id)
     .order("updated_at", { ascending: false });
-  const blogUrl = `${publicSiteUrl(site.slug)}/blog`;
+  const blogUrl = `${publicSiteUrl(site)}/blog`;
 
   return (
     <>
-    <DashNav active="/dashboard/blog" liveUrl={site.status === "live" ? publicSiteUrl(site.slug) : null} />
+    <DashNav active="/dashboard/blog" liveUrl={site.status === "live" ? publicSiteUrl(site) : null} />
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

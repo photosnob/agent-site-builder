@@ -22,7 +22,7 @@ export default async function Dashboard() {
     supabase.from("leads").select("id, name, email, phone, intent, message, created_at").eq("site_id", site.id).order("created_at", { ascending: false }).limit(20),
   ]);
 
-  const liveUrl = publicSiteUrl(site.slug);
+  const liveUrl = publicSiteUrl(site);
   const [pages, assets] = await Promise.all([listPages(site.id), getAssets(site.id), seedTestimonialsFromImport(site).catch(() => 0), seedListingsFromImport(site).catch(() => 0)]);
   const heroBlock = site.content.blocks.find((b) => b.type === "hero");
   const hp = heroBlock?.type === "hero" ? heroBlock.props : undefined;

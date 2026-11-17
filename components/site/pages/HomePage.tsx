@@ -27,7 +27,7 @@ export async function homeMetadata(slug: string, _hosted: boolean): Promise<Meta
   const seo = seoOf(site.seo);
   const title = seo.title || defaultTitle(site.agent);
   const description = seo.description || defaultDescription(site.agent, site.published_content);
-  const url = canonicalOrigin(slug);
+  const url = canonicalOrigin(site);
   const image = seo.ogImage || heroImage(site.published_content);
   return {
     title: { absolute: title },
@@ -46,7 +46,7 @@ export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean
   const [assets, data] = await Promise.all([getAssets(site.id), getSiteData(site.id)]);
   const seo = seoOf(site.seo);
   const jsonLd = homeGraph({
-    origin: canonicalOrigin(slug),
+    origin: canonicalOrigin(site),
     agent: site.agent,
     content: site.published_content,
     seo,

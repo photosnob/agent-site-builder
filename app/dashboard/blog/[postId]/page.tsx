@@ -13,5 +13,5 @@ export default async function EditPost({ params }: { params: Promise<{ postId: s
   if (!site) redirect("/onboarding");
   const { data: post } = await supabase.from("blog_posts").select("*").eq("id", postId).eq("site_id", site.id).maybeSingle();
   if (!post) notFound();
-  return <PostEditor siteId={site.id} post={post} publicBase={publicSiteUrl(site.slug)} agentName={(site.agent as { name?: string })?.name ?? ""} canonicalBase={canonicalOrigin(site.slug)} />;
+  return <PostEditor siteId={site.id} post={post} publicBase={publicSiteUrl(site)} agentName={(site.agent as { name?: string })?.name ?? ""} canonicalBase={canonicalOrigin(site)} />;
 }

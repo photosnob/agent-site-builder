@@ -23,7 +23,7 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
   }
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const [sites, listings, posts, leads, ai] = await Promise.all([
-    admin.from("sites").select("id, owner_id, slug, status, template, onboarding_step, published_at, created_at, agent, source:import_data->>sourceUrl"),
+    admin.from("sites").select("id, owner_id, slug, status, template, onboarding_step, published_at, created_at, agent, custom_domain, domain_status, source:import_data->>sourceUrl"),
     admin.from("site_listings").select("site_id"),
     admin.from("blog_posts").select("site_id"),
     admin.from("leads").select("site_id"),
@@ -57,7 +57,7 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
           id: s.id, slug: s.slug, name: agent.name || s.slug, brokerage: agent.brokerage ?? null,
           market: agent.serviceAreas?.slice(0, 3).join(", ") || null, phone: agent.phone || null, contactEmail: agent.email || null,
           status: s.status, template: s.template, step: s.onboarding_step, publishedAt: s.published_at, createdAt: s.created_at,
-          liveUrl: publicSiteUrl(s.slug), sourceUrl: (s as { source?: string | null }).source ?? null,
+          liveUrl: publicSiteUrl(s), sourceUrl: (s as { source?: string | null }).source ?? null,
           listings: nListings.get(s.id) ?? 0, posts: nPosts.get(s.id) ?? 0, leads: nLeads.get(s.id) ?? 0,
           aiEdits30d: usage.get(s.id)?.n ?? 0, aiCost30d: usage.get(s.id)?.cost ?? 0,
         } : null,

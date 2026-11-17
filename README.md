@@ -44,6 +44,10 @@ Six templates (`lib/templates.ts`). Modern, Estate and Mid-Century use the class
 
 `/dashboard/redirects`: the agent scans their old site (sitemap via robots.txt, sitemap_index.xml, wp-sitemap.xml; home page links as a fallback; limited to the folder entered, so an agent page on a brokerage site doesn't pull in the brokerage) and each old URL gets a suggested destination (`lib/redirects.ts`: matching post slug, page/section keywords, similar post titles; otherwise home/blog, flagged "Needs a look"). They can edit any row, add one, or paste a list. Redirects are only looked up where the site would otherwise 404 (`redirectOrNotFound`, plus the `[...path]` catch-all for deeper old URLs), so they cost nothing for normal page views; changes revalidate just the affected paths. They take effect once the old domain points at this app, which needs custom domains (see below).
 
+### Custom domains
+
+Settings → Your domain. The agent enters a domain; `lib/domains.ts` registers it on the Vercel project (the www/apex partner is added as a 308 redirect), then shows the A/CNAME records Vercel recommends (plus a TXT record if the domain is verified elsewhere). The page re-checks every 20s and stores `sites.domain_status` (pending, active or error). `proxy.ts` serves custom hosts by looking up `sites.custom_domain` (cached for a minute) and rewriting to `/h/<slug>`. Once active, the old `<slug>.<root>` address 308-redirects to the domain, and canonical URLs, sitemaps and dashboard links switch to it. Needs `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if a team) and migration 0010. Vercel Pro is required for commercial use.
+
 ### Email
 
 New leads are emailed to the agent through Resend (`lib/email.ts`); replies go to the lead. Set `RESEND_API_KEY` and `EMAIL_FROM` (on a domain verified in Resend).
@@ -80,7 +84,7 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Setup
 
-1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`, `0007_redirects.sql`, `0008_more_templates.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
+1. **Supabase:** create a project, then run each file in `supabase/migrations/` in order (`0001_init.sql`, `0002_blog.sql`, `0003_ai_usage.sql`, `0004_seo.sql`, `0005_pages_listings_reviews_team.sql`, `0006_hero_media_instagram.sql`, `0007_redirects.sql`, `0008_more_templates.sql`, `0009_platform_blog.sql`, `0010_custom_domains.sql`) in the SQL editor. Under Auth → URL Configuration, add `http://localhost:3000/auth/callback` (and your production URL) as a redirect.
 2. **Env:** `cp .env.example .env.local` and fill in the Supabase keys and `ANTHROPIC_API_KEY`.
 3. **Run:**
    ```bash
@@ -98,7 +102,6 @@ The Fair Housing lists are a starting point, not legal review. Have broker compl
 
 ## Not in this MVP (next steps)
 
-- **Custom domains:** add via the Vercel Domains API, verify ownership, and resolve `sites.custom_domain` in `proxy.ts` (cache the lookup).
 - **MLS feed:** RESO Web API ingestion → `featured-listings` sourced from the feed, plus per-MLS display rules.
 - **Lead routing:** email/SMS notifications (with TCPA-compliant consent capture), CRM sync, Turnstile on forms.
 - **Production hardening:** a shared rate limiter (Upstash/Vercel KV), IP-pinned fetches against DNS rebinding, image resizing, more block types, a direct-manipulation editor for small text tweaks, and multi-page sites (neighborhood pages for SEO).

@@ -8,6 +8,8 @@ import { defaultDescription, defaultTitle, llmsTxt } from "@/lib/seo/files";
 import { SiteSeo } from "@/lib/seo/schema";
 import { SeoSettings } from "@/components/seo/SeoSettings";
 import { TrackingSettings } from "@/components/seo/TrackingSettings";
+import { DomainSettings } from "@/components/seo/DomainSettings";
+import { domainsConfigured } from "@/lib/domains";
 import { DashNav } from "@/components/app/DashNav";
 import { LogoSettings } from "@/components/seo/LogoSettings";
 import { HeadshotSettings } from "@/components/seo/HeadshotSettings";
@@ -32,7 +34,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const parsed = SiteSeo.safeParse(site.seo ?? {});
   const seo = parsed.success ? parsed.data : {};
   const content = site.published_content ?? site.content;
-  const origin = canonicalOrigin(site.slug);
+  const origin = canonicalOrigin(site);
   const [assets, posts, igRow, igPosts, redirects] = await Promise.all([
     getAssets(site.id),
     getPublishedPosts(site.id, 1000),
@@ -45,9 +47,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-    <DashNav active="/dashboard/settings" liveUrl={site.status === "live" ? publicSiteUrl(site.slug) : null} />
+    <DashNav active="/dashboard/settings" liveUrl={site.status === "live" ? publicSiteUrl(site) : null} />
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-3xl font-bold">Settings</h1>
+      <div className="mt-8">
+        <DomainSettings siteId={site.id} freeUrl={canonicalOrigin(site.slug)}
+          initial={{ configured: domainsConfigured(), domain: site.custom_domain, status: site.domain_status ?? undefined }} />
+      </div>
       <div className="mt-8">
         <HeadshotSettings siteId={site.id} current={(() => { const h = assets.find((a) => a.kind === "headshot"); return h ? { url: h.url, originalUrl: h.meta?.originalUrl, crop: h.meta?.crop } : null; })()} agentName={site.agent.name ?? ""} />
       </div>
