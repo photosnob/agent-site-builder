@@ -48,6 +48,12 @@ function rewriteToSite(req: NextRequest, slug: string, pathname: string) {
   return NextResponse.rewrite(url);
 }
 
+// The app's own addresses, from env: NEXT_PUBLIC_APP_URL and the URLs Vercel provides.
+const hostOf = (u?: string) => { try { return u ? new URL(u.startsWith("http") ? u : `https://${u}`).host.toLowerCase() : ""; } catch { return ""; } };
+for (const h of [process.env.NEXT_PUBLIC_APP_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL].map(hostOf)) {
+  if (h) { APP_HOSTS.add(h); APP_HOSTS.add(h.startsWith("www.") ? h.slice(4) : `www.${h}`); }
+}
+
 const isPlatformHost = (host: string) =>
   APP_HOSTS.has(host) || host.endsWith(`.${ROOT}`) || host.endsWith(".vercel.app") || host.startsWith("localhost") || host.startsWith("127.0.0.1") || host === "";
 
@@ -71,7 +77,8 @@ export async function proxy(req: NextRequest) {
     if (pathname.startsWith("/api/")) return NextResponse.next(); // lead forms etc. post here
     const hit = await lookup("domain", host.replace(/:\d+$/, ""));
     if (hit) return rewriteToSite(req, hit.slug, pathname);
-    return new NextResponse("This site isn't set up yet.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    // Not an agent's domain: it's one of ours (Vercel only routes domains added to this
+    // project), so fall through and serve the app normally.
   }
 
   // Path-mode sites: /s/<slug>/sitemap.xml etc. (robots.txt only works at a host root).
