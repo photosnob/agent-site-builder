@@ -5,7 +5,22 @@ import type { Template } from "@/lib/templates";
  * A small layout sketch of a template, drawn in its own palette. Scales to any
  * size (it's an SVG), so it works in the onboarding picker and on the homepage.
  */
+// Real screenshots of each template with a sample agent (public/templates/<id>.webp).
+const PREVIEWS = new Set(["modern", "estate", "midcentury", "noir", "riviera", "bright"]);
+
 export function TemplateThumb({ t, tall = false }: { t: Template; tall?: boolean }) {
+  if (PREVIEWS.has(t.id)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={`/templates/${t.id}.webp`} alt={`${t.name} template example`} loading="lazy" decoding="async" width={720} height={900}
+        className={`block w-full object-cover object-top ${tall ? "aspect-[4/5]" : "h-40"}`} />
+    );
+  }
+  return <TemplateSketch t={t} tall={tall} />;
+}
+
+/** Fallback drawing for a template that has no screenshot yet. */
+function TemplateSketch({ t, tall = false }: { t: Template; tall?: boolean }) {
   const p = PALETTES[t.theme.palette];
   const id = `tt-${t.id}`;
   const H = tall ? 250 : 160;
