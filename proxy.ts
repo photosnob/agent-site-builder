@@ -81,6 +81,14 @@ export async function proxy(req: NextRequest) {
     // project), so fall through and serve the app normally.
   }
 
+  // Path-mode sites (/s/<slug>/...): once the agent's own domain is connected, send visitors
+  // (and Google) there instead, so the site isn't duplicated on our domain.
+  const pathSite = pathname.match(/^\/s\/([a-z0-9-]{3,48})(\/.*)?$/);
+  if (pathSite) {
+    const hit = await lookup("slug", pathSite[1]);
+    if (hit?.active && hit.domain) return NextResponse.redirect(`https://${hit.domain}${pathSite[2] ?? "/"}${req.nextUrl.search}`, 308);
+  }
+
   // Path-mode sites: /s/<slug>/sitemap.xml etc. (robots.txt only works at a host root).
   const pathSeo = pathname.match(/^\/s\/([a-z0-9-]{3,48})(\/sitemap\.xml|\/llms\.txt|\/blog\/rss\.xml)$/);
   if (pathSeo) {

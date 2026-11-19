@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { appUrl } from "@/lib/siteUrls";
+import { appUrl, liveCustomDomain } from "@/lib/siteUrls";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPublishedPlatformPosts } from "@/lib/blog/platform";
 
@@ -8,6 +8,8 @@ export const revalidate = 3600;
 /**
  * The app domain's sitemap. Until agent sites have their own (sub)domains
  * (NEXT_PUBLIC_ROOT_DOMAIN unset), they live at /s/<slug> and are listed here.
+ * A site leaves this list once the agent's own domain is connected and working:
+ * /s/<slug> then redirects there, and that domain serves its own /sitemap.xml.
  * Once a root domain is set, each site serves its own /sitemap.xml instead.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -21,8 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (process.env.NEXT_PUBLIC_ROOT_DOMAIN || !process.env.NEXT_PUBLIC_SUPABASE_URL) return entries;
   try {
     const admin = createAdminClient();
-    const { data: sites } = await admin.from("sites").select("id, slug, published_at, seo").eq("status", "live").limit(5000);
-    const visible = (sites ?? []).filter((s) => !(s.seo as { noindex?: boolean } | null)?.noindex);
+    const { data: sites } = await admin.from("sites").select("id, slug, published_at, seo, custom_domain, domain_status").eq("status", "live").limit(5000);
+    const visible = (sites ?? []).filter((s) => !(s.seo as { noindex?: boolean } | null)?.noindex && !liveCustomDomain(s));
     const { data: posts } = visible.length
       ? await admin.from("blog_posts").select("site_id, slug, updated_at").eq("status", "published").in("site_id", visible.map((s) => s.id)).limit(20000)
       : { data: [] };
