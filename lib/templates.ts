@@ -12,6 +12,8 @@ export interface Template {
   allowedPalettes: Theme["palette"][];
   /** Retired from the picker; existing sites on it keep working. */
   hidden?: boolean;
+  /** A live example site built with this template. When set, the homepage card links to it. */
+  sampleUrl?: string;
   /** Short line for the template picker's preview card. */
   preview?: { dark: boolean; headline: string };
   /** Default page structure. Generation fills these; edits may add/remove optional ones. */

@@ -4,6 +4,7 @@ import { BRAND, BrandFonts } from "@/components/marketing/Brand";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing/Chrome";
 import { TemplateThumb } from "@/components/app/TemplateThumb";
 import { HeroCarousel } from "@/components/marketing/HeroCarousel";
+import { TiltCard } from "@/components/marketing/TiltCard";
 import { TEMPLATE_LIST } from "@/lib/templates";
 
 // Early access is free for a limited time. Bring back a price here once payments are connected.
@@ -130,7 +131,7 @@ export default function Home() {
             <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
               {TEMPLATE_LIST.map((t) => (
                 <div key={t.id} className="flex flex-col gap-3.5">
-                  <div className="overflow-hidden rounded"><TemplateThumb t={t} tall /></div>
+                  <TiltCard href={t.sampleUrl} label="View sample site"><TemplateThumb t={t} tall /></TiltCard>
                   <strong className="text-xl">{t.name}</strong>
                   <span className="text-sm leading-normal" style={{ color: BRAND.sage }}>{t.description}</span>
                 </div>
