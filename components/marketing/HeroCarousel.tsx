@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { BRAND } from "./Brand";
 
 const SLIDES = [
-  { id: "monument", name: "Monument", domain: "vivianchohomes.com", prompt: "Put my Racquet Club listing first." },
+  { id: "monument", name: "Modern", domain: "vivianchohomes.com", prompt: "Put my Racquet Club listing first." },
   { id: "heritage", name: "Heritage", domain: "vantagepg.com", prompt: "Add our new Westlake listing at $7.45M." },
   { id: "riviera", name: "Riviera", domain: "casaandco.com", prompt: "Swap the hero for my Carmel road photo." },
   { id: "noir", name: "Noir", domain: "aureliaestates.com", prompt: "Mark Alpine Drive as sold." },

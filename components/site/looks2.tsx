@@ -5,7 +5,7 @@ import { HeroMedia, anchorFor, facts, heroHasMedia, listingItems, paragraphs, ty
 import { CountUp } from "./CountUp";
 
 /**
- * Monument (bold, inspired by editorial agency sites: oversized capitals, an
+ * Modern, internally "monument" (bold, inspired by editorial agency sites: oversized capitals, an
  * oxblood statement band, a pinned hero the page slides over, stacked listing
  * cards) and Heritage (quiet luxury: spaced capitals, navy and copper, photos
  * that drift as you scroll). Return null to fall back to the classic layout.

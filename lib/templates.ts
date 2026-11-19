@@ -23,7 +23,7 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   modern: {
     id: "modern",
     hidden: true,
-    name: "Modern",
+    name: "Classic Modern",
     description: "Clean sans-serif, lots of white space, listings up front.",
     theme: { palette: "navy", fonts: "sans-modern", radius: "soft", heroStyle: "split", look: "classic" },
     allowedPalettes: ["navy", "ink", "forest", "midnight"],
@@ -51,7 +51,7 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   },
   monument: {
     id: "monument",
-    name: "Monument",
+    name: "Modern",
     description: "Oversized type and an oxblood statement section; photos slide over each other as you scroll.",
     theme: { palette: "monument", fonts: "monument", radius: "none", heroStyle: "full-bleed", look: "monument" },
     allowedPalettes: ["monument", "monument-ink"],
