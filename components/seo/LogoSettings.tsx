@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { analyze, contentBounds, removeBackground } from "@/lib/logo";
 import { BoxCropper, type Box } from "@/components/manage/BoxCropper";
+import { iconFromLogo } from "@/lib/favicon";
 
 type Prepared = { original: ImageData; w: number; h: number; bg: [number, number, number] | null; hasTransparency: boolean };
 
@@ -97,6 +98,13 @@ export function LogoSettings({ siteId, current, agentName }: { siteId: string; c
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setMsg({ ok: false, text: data.error ?? "Upload failed" }); return; }
+    // Refresh the site icon from the new logo (the server keeps a custom icon if the agent uploaded one).
+    try {
+      const icon = new FormData();
+      icon.set("file", new File([await iconFromLogo(blob)], "icon.png", { type: "image/png" }));
+      icon.set("kind", "favicon"); icon.set("auto", "1");
+      await fetch(`/api/sites/${siteId}/assets`, { method: "POST", body: icon });
+    } catch { /* the icon falls back to one drawn from the logo */ }
     setPrep(null);
     setMsg({ ok: true, text: "Logo saved. It replaces your name in the site header." });
     router.refresh();

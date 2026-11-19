@@ -32,9 +32,9 @@ export type AgentProfile = z.infer<typeof AgentProfile>;
 
 export interface SiteAsset {
   id: string;
-  kind: "headshot" | "logo" | "listing" | "other";
+  kind: "headshot" | "logo" | "favicon" | "listing" | "other";
   url: string;
-  meta: { alt?: string; address?: string; price?: string; status?: string; originalUrl?: string; crop?: { cx: number; cy: number; zoom: number } };
+  meta: { alt?: string; address?: string; price?: string; status?: string; originalUrl?: string; crop?: { cx: number; cy: number; zoom: number }; tone?: "light" | "dark"; auto?: boolean };
 }
 
 export interface ImportData {

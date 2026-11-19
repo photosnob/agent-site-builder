@@ -12,6 +12,8 @@ import { DomainSettings } from "@/components/seo/DomainSettings";
 import { domainsConfigured } from "@/lib/domains";
 import { DashNav } from "@/components/app/DashNav";
 import { LogoSettings } from "@/components/seo/LogoSettings";
+import { FaviconSettings } from "@/components/seo/FaviconSettings";
+import { siteIconUrl } from "@/lib/siteIcon";
 import { HeadshotSettings } from "@/components/seo/HeadshotSettings";
 import { InstagramSettings } from "@/components/seo/InstagramSettings";
 import { getInstagramPosts, instagramConfigured } from "@/lib/instagram";
@@ -61,6 +63,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <LogoSettings siteId={site.id} current={assets.find((a) => a.kind === "logo")?.url ?? null} agentName={site.agent.name ?? ""} />
       </div>
       <div className="mt-6">
+        {(() => {
+          const fav = assets.find((a) => a.kind === "favicon");
+          return (
+            <FaviconSettings siteId={site.id} icon={fav ? { url: fav.url, auto: Boolean(fav.meta?.auto) } : null}
+              logoUrl={assets.find((a) => a.kind === "logo")?.url ?? null}
+              fallbackUrl={siteIconUrl({ ...site, published_theme: site.published_theme ?? site.theme }, assets.filter((a) => a.kind !== "favicon"))}
+              siteName={site.agent.name || site.slug} />
+          );
+        })()}
+      </div>
+      <div className="mt-6">
         <InstagramSettings
           siteId={site.id}
           configured={instagramConfigured()}
@@ -94,7 +107,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         hostedRoot={Boolean(process.env.NEXT_PUBLIC_ROOT_DOMAIN)}
         initial={seo}
         defaults={{ title: defaultTitle(site.agent), description: defaultDescription(site.agent, content) }}
-        images={assets.map((a) => ({ id: a.id, url: a.url, kind: a.kind }))}
+        images={assets.filter((a) => a.kind !== "favicon").map((a) => ({ id: a.id, url: a.url, kind: a.kind }))}
         generatedLlms={generatedLlms}
         postCount={posts.length}
       />

@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const agent = AgentProfile.parse(site.agent);
-  const assets = await getAssets(site.id);
+  const assets = (await getAssets(site.id)).filter((a) => a.kind !== "favicon");
   let result;
   try {
     result = await planAndApplyEdit({

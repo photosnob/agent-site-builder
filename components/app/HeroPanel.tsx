@@ -41,7 +41,7 @@ export function HeroPanel({ siteId, initial, assets, onSaved, onPreview, openSig
   const [stock, setStock] = useState<{ name: string; url: string; poster: string | null }[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const images = lib.filter((a) => a.meta?.type !== "video" && a.kind !== "logo");
+  const images = lib.filter((a) => a.meta?.type !== "video" && a.kind !== "logo" && a.kind !== "favicon");
   const videos = lib.filter((a) => a.meta?.type === "video");
 
   useEffect(() => { if (open && h.style === "video" && stock === null) fetch("/api/stock-videos").then((r) => r.json()).then((d) => setStock(d.videos ?? [])).catch(() => setStock([])); }, [open, h.style, stock]);

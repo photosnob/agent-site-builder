@@ -24,7 +24,9 @@ const Confirm = z.object({
 
 /**
  * POST application/json   → import the candidates the agent selected from the scan
- * POST multipart/form-data → direct upload (file, kind=headshot|logo|listing)
+ * POST multipart/form-data → direct upload (file, kind=headshot|logo|favicon|listing)
+ *   kind=favicon with auto=1 is the icon made from the logo; it never replaces a custom icon.
+ * DELETE ?kind=favicon      → remove the site icon (falls back to the logo, then initials)
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await ownedSiteOr404(params);
@@ -35,9 +37,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if ((req.headers.get("content-type") || "").startsWith("multipart/form-data")) {
     const form = await req.formData();
     const file = form.get("file");
-    const kind = z.enum(["headshot", "logo", "listing", "other"]).safeParse(form.get("kind"));
+    const kind = z.enum(["headshot", "logo", "favicon", "listing", "other"]).safeParse(form.get("kind"));
     if (!(file instanceof File) || !kind.success) return fail("Missing file or kind");
     if (file.size > 8_000_000) return fail("Images must be under 8 MB");
+    const auto = kind.data === "favicon" && form.get("auto") === "1";
+    if (auto) {
+      const { data: custom } = await admin.from("site_assets").select("id, kind, url, meta").eq("site_id", siteId).eq("kind", "favicon").neq("meta->>auto", "true").maybeSingle();
+      if (custom) return json({ asset: custom, kept: true });
+    }
     try {
       const stored = await storeImage(siteId, Buffer.from(await file.arrayBuffer()));
       // One headshot and one logo per site: replace the previous one.
@@ -51,6 +58,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // Headshots keep the uncropped photo and crop position so they can be re-adjusted later.
       const meta: Record<string, unknown> = {};
       if (kind.data === "logo" && ["light", "dark"].includes(String(form.get("tone")))) meta.tone = String(form.get("tone"));
+      if (kind.data === "favicon") meta.auto = auto;
       if (kind.data === "headshot") {
         const original = form.get("original");
         const keep = form.get("originalUrl");
@@ -65,11 +73,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
         if (crop.success && meta.originalUrl) meta.crop = crop.data;
       }
-      if (kind.data === "headshot" || kind.data === "logo") await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", kind.data);
+      if (kind.data === "headshot" || kind.data === "logo" || kind.data === "favicon") await admin.from("site_assets").delete().eq("site_id", siteId).eq("kind", kind.data);
       const { data } = await admin.from("site_assets").insert({ site_id: siteId, kind: kind.data, url: stored.url, storage_path: stored.path, meta }).select("id, kind, url, meta").single();
       if (kind.data === "headshot" && previous.length) await swapImageUrl(admin, siteId, previous, stored.url);
       // Header logo and author photo appear on every page, so refresh the whole site.
-      if (kind.data === "headshot" || kind.data === "logo") for (const m of ["s", "h"]) revalidatePath(`/${m}/${ctx.site.slug}`, "layout");
+      if (kind.data === "headshot" || kind.data === "logo" || kind.data === "favicon") for (const m of ["s", "h"]) revalidatePath(`/${m}/${ctx.site.slug}`, "layout");
       return json({ asset: data });
     } catch {
       return fail("That file isn't a supported image (JPG, PNG, WebP, AVIF).", 422);
@@ -117,4 +125,13 @@ async function swapImageUrl(admin: ReturnType<typeof createAdminClient>, siteId:
     const c = swap(pg.content), p = swap(pg.published_content);
     if (c.changed || p.changed) await admin.from("site_pages").update({ content: c.v, published_content: p.v }).eq("id", pg.id);
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const ctx = await ownedSiteOr404(params);
+  if ("error" in ctx) return ctx.error;
+  if (new URL(req.url).searchParams.get("kind") !== "favicon") return fail("Only the site icon can be removed here");
+  await createAdminClient().from("site_assets").delete().eq("site_id", ctx.site.id).eq("kind", "favicon");
+  for (const m of ["s", "h"]) revalidatePath(`/${m}/${ctx.site.slug}`, "layout");
+  return json({ ok: true });
 }
