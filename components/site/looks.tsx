@@ -5,6 +5,7 @@ import type { AgentProfile } from "@/lib/types";
 import { HeroSlideshow } from "./HeroSlideshow";
 import { HeroVideo } from "./HeroVideo";
 import { LeadForm } from "./LeadForm";
+import { CountUp } from "./CountUp";
 
 /**
  * Section layouts for the non-classic looks (Noir, Riviera, Bright). Each look
@@ -408,7 +409,7 @@ function Stats({ b, ctx }: { b: Of<"stats">; ctx: Ctx }) {
         <dl className={`grid grid-cols-2 gap-x-8 gap-y-10 ${cols}`}>
           {b.props.items.map((s, i) => (
             <div key={i} className="border-t pt-6" style={{ borderColor: "color-mix(in srgb, var(--text) 18%, transparent)" }}>
-              <dd className="site-heading text-4xl sm:text-5xl">{s.value}</dd>
+              <dd className="site-heading text-4xl sm:text-5xl"><CountUp value={s.value} /></dd>
               <dt className="mt-3 text-[10px] uppercase tracking-[0.28em]" style={{ color: "var(--accent)" }}>{s.label}</dt>
             </div>
           ))}
@@ -422,7 +423,7 @@ function Stats({ b, ctx }: { b: Of<"stats">; ctx: Ctx }) {
         <dl className={`grid grid-cols-2 gap-y-10 text-center ${cols}`}>
           {b.props.items.map((s, i) => (
             <div key={i} className="px-4 sm:border-l first:border-l-0" style={{ borderColor: "color-mix(in srgb, var(--text) 14%, transparent)" }}>
-              <dd className="site-heading text-5xl font-light">{s.value}</dd>
+              <dd className="site-heading text-5xl font-light"><CountUp value={s.value} /></dd>
               <dt className="mt-3 text-[10px] uppercase tracking-[0.3em]" style={{ color: "var(--muted)" }}>{s.label}</dt>
             </div>
           ))}
@@ -435,7 +436,7 @@ function Stats({ b, ctx }: { b: Of<"stats">; ctx: Ctx }) {
       <dl className={`grid grid-cols-2 gap-6 ${cols}`}>
         {b.props.items.map((s, i) => (
           <div key={i} className="p-6" style={{ background: "var(--surface)", borderRadius: "calc(var(--radius) + 4px)" }}>
-            <dd className="site-heading text-5xl sm:text-6xl">{s.value}</dd>
+            <dd className="site-heading text-5xl sm:text-6xl"><CountUp value={s.value} /></dd>
             <dt className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{s.label}</dt>
           </div>
         ))}

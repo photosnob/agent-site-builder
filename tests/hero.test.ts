@@ -23,3 +23,12 @@ test("preview only shows media the agent could save", () => {
   assert.equal(heroMediaError({ heroStyle: "video", videoUrl: `${STOCK}waves.mp4` }, OWN, STOCK), null);
   assert.ok(heroMediaError({ heroStyle: "slideshow", slides: [`${OWN}a.jpg`, `${STOCK}b.jpg`] }, OWN, STOCK));
 });
+
+import { formatStat, parseStat } from "../components/site/CountUp";
+
+test("stats count up without losing their units", () => {
+  const cases: [string, number, string][] = [["$1.2B", 0.5, "$0.6B"], ["$600M+", 0.5, "$300M+"], ["14 yrs", 0.5, "7 yrs"], ["4.9★", 1, "4.9★"], ["2,450", 0.5, "1,225"], ["Top 1%", 1, "Top 1%"], ["101%", 0, "0%"]];
+  for (const [v, k, want] of cases) { const p = parseStat(v)!; assert.equal(formatStat(p, p.n * k), want, v); }
+  assert.equal(parseStat("Since 2008"), null);
+  assert.equal(parseStat("Award-winning"), null);
+});

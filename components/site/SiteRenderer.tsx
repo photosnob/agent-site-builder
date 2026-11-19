@@ -9,6 +9,7 @@ import { HeroSlideshow } from "./HeroSlideshow";
 import { SiteShell } from "./SiteShell";
 import { LookBlock, heroHasMedia } from "./looks";
 import { LookBlock2 } from "./looks2";
+import { CountUp } from "./CountUp";
 
 type Agent = Partial<AgentProfile>;
 
@@ -120,7 +121,7 @@ function ImmersiveHero({ b, theme, agent, poster }: { b: Extract<Block, { type: 
             {stats.map((s) => (
               <div key={s.label}>
                 <dt className="sr-only">{s.label}</dt>
-                <dd className="site-heading text-2xl sm:text-3xl">{s.value}</dd>
+                <dd className="site-heading text-2xl sm:text-3xl"><CountUp value={s.value} /></dd>
                 <dd className="mt-1 text-[10px] uppercase tracking-[0.2em] opacity-80">{s.label}</dd>
               </div>
             ))}
@@ -286,7 +287,7 @@ function BlockView({ block: b, theme, agent, siteId, interactive, headshot, data
         <div className="site-container grid grid-cols-2 gap-8 py-14 md:grid-cols-4">
           {b.props.items.map((s, i) => (
             <div key={i} className="text-center">
-              <p className="site-heading text-4xl" style={{ color: "var(--accent)" }}>{s.value}</p>
+              <p className="site-heading text-4xl" style={{ color: "var(--accent)" }}><CountUp value={s.value} /></p>
               <p className="mt-1 text-sm uppercase tracking-wide" style={{ color: "var(--muted)" }}>{s.label}</p>
             </div>
           ))}

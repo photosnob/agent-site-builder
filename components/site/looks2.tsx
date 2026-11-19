@@ -2,6 +2,7 @@ import type { Block } from "@/lib/blocks/schema";
 import { LeadForm } from "./LeadForm";
 import { ParallaxImage } from "./Parallax";
 import { HeroMedia, anchorFor, facts, heroHasMedia, listingItems, paragraphs, type Ctx, type Of } from "./looks";
+import { CountUp } from "./CountUp";
 
 /**
  * Monument (bold, inspired by editorial agency sites: oversized capitals, an
@@ -76,7 +77,7 @@ function MStats({ b }: { b: Of<"stats"> }) {
       <dl className="grid gap-y-12 border-t sm:grid-cols-3" style={{ borderColor: "var(--text)" }}>
         {b.props.items.map((s, i) => (
           <div key={i} className="pt-6 sm:pr-8">
-            <dd className="look-serif text-6xl leading-none sm:text-7xl">{s.value}</dd>
+            <dd className="look-serif text-6xl leading-none sm:text-7xl"><CountUp value={s.value} /></dd>
             <dt className={`${tag} mt-4 max-w-[22ch]`}>{s.label}</dt>
           </div>
         ))}
@@ -248,7 +249,7 @@ function HStats({ b }: { b: Of<"stats"> }) {
       <dl className="site-container grid gap-y-10 text-center sm:grid-cols-3">
         {b.props.items.map((s, i) => (
           <div key={i}>
-            <dd className="site-heading text-4xl tracking-[0.06em] sm:text-5xl" style={{ color: "var(--accent)" }}>{s.value}</dd>
+            <dd className="site-heading text-4xl tracking-[0.06em] sm:text-5xl" style={{ color: "var(--accent)" }}><CountUp value={s.value} /></dd>
             <dt className={`${label} mt-3`}>{s.label}</dt>
           </div>
         ))}
