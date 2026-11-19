@@ -38,6 +38,7 @@ const FEATURES = [
     items: [
       ["Update listings in seconds", "Add new listings, mark homes sold and refresh your bio as fast as your business moves."],
       ["A site that shows you’re active", "Buyers and sellers notice a current site. Keep yours as up to date as your Instagram."],
+      ["Found in search and AI answers", "SEO-optimized pages for search awareness and AI exposure. Titles, descriptions, structured data, sitemaps and an llms.txt file are set up for you, so you show up on Google and in tools like ChatGPT."],
     ],
   },
 ] as const;
@@ -97,8 +98,8 @@ export default function Home() {
                   <p className="text-base leading-normal" style={{ color: BRAND.ink }}>{f.lead}</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-                  {f.items.map(([t, d]) => (
-                    <div key={t} className="flex flex-col gap-2 rounded p-6" style={{ background: BRAND.ivory }}>
+                  {f.items.map(([t, d], i) => (
+                    <div key={t} className={`flex flex-col gap-2 rounded p-6 ${f.items.length % 2 && i === f.items.length - 1 ? "sm:col-span-2" : ""}`} style={{ background: BRAND.ivory }}>
                       <strong className="text-[19px] tracking-[-0.02em]">{t}</strong>
                       <span className="text-[15px] leading-normal" style={{ color: BRAND.ink }}>{d}</span>
                     </div>
