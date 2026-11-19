@@ -15,6 +15,7 @@ export interface LdSite {
   seo: SiteSeo;
   headshot?: string;
   logo?: string;
+  logoTone?: "light" | "dark";
 }
 
 const clean = <T extends Record<string, unknown>>(o: T) =>

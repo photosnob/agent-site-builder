@@ -58,6 +58,7 @@ export async function SubPage({ slug, pageSlug, hosted }: { slug: string; pageSl
         siteId={site.id}
         headshot={headshotOf(assets)}
         logo={assets.find((a) => a.kind === "logo")?.url}
+        logoTone={(assets.find((a) => a.kind === "logo")?.meta as { tone?: "light" | "dark" } | undefined)?.tone}
         base={basePath(slug, hosted)}
         hasBlog={data.posts.length > 0}
         data={data}

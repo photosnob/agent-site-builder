@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { TEMPLATE_LIST, type TemplateId } from "@/lib/templates";
+import { TEMPLATES, TEMPLATE_LIST, type TemplateId } from "@/lib/templates";
 import { TemplateThumb } from "./TemplateThumb";
 
 /** Switch the site's template from the editor. Content stays; the design changes in the draft. */
@@ -31,7 +31,7 @@ export function TemplatePanel({ siteId, current, onSwitched }: { siteId: string;
         <div className="space-y-3 border-t border-stone-100 p-3">
           <p className="text-xs text-stone-500">Your text, photos, listings and pages stay the same. Colors, fonts and layout change in your draft; nothing goes live until you publish.</p>
           <div className="grid grid-cols-2 gap-2">
-            {TEMPLATE_LIST.map((t) => (
+            {(current && !TEMPLATE_LIST.some((t) => t.id === current) ? [TEMPLATES[current], ...TEMPLATE_LIST] : TEMPLATE_LIST).map((t) => (
               <button key={t.id} type="button" onClick={() => pick(t.id as TemplateId)} disabled={!!busy} aria-pressed={t.id === current}
                 className={`overflow-hidden rounded-lg border-2 text-left transition ${t.id === current ? "border-stone-900" : "border-stone-200 hover:border-stone-400"} ${busy && busy !== t.id ? "opacity-50" : ""}`}>
                 <TemplateThumb t={t} />

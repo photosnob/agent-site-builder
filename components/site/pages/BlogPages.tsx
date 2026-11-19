@@ -35,6 +35,7 @@ async function ldSite(site: Awaited<ReturnType<typeof loadSite>>, slug: string):
     seo: seoOf(site.seo),
     headshot: headshotOf(assets),
     logo: assets.find((a) => a.kind === "logo")?.url,
+    logoTone: (assets.find((a) => a.kind === "logo")?.meta as { tone?: "light" | "dark" } | undefined)?.tone,
     aboutBody: about?.type === "about" ? about.props.body : undefined,
     nav: data.nav,
   };
@@ -62,7 +63,7 @@ export async function BlogIndexPage({ slug, hosted }: { slug: string; hosted: bo
   const [posts, ld] = await Promise.all([getPublishedPosts(site.id), ldSite(site, slug)]);
   const base = basePath(slug, hosted);
   return (
-    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo} logoTone={ld.logoTone}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
       <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={blogIndexGraph(ld, posts)} />
@@ -134,7 +135,7 @@ export async function BlogPostPage({ slug, postSlug, hosted }: { slug: string; p
   });
 
   return (
-    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo}
+    <SiteShell theme={site.published_theme} agent={site.agent} base={base} hasBlog nav={ld.nav} logo={ld.logo} logoTone={ld.logoTone}
       sections={{ listings: hasSection(site, "featured-listings"), about: hasSection(site, "about") }}>
       <SiteTracking ids={seoOf(site.seo).tracking} />
       <JsonLd data={graphData} />

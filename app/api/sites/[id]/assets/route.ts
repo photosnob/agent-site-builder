@@ -50,6 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
       // Headshots keep the uncropped photo and crop position so they can be re-adjusted later.
       const meta: Record<string, unknown> = {};
+      if (kind.data === "logo" && ["light", "dark"].includes(String(form.get("tone")))) meta.tone = String(form.get("tone"));
       if (kind.data === "headshot") {
         const original = form.get("original");
         const keep = form.get("originalUrl");

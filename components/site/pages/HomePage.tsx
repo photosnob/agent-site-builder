@@ -67,6 +67,7 @@ export async function HomePage({ slug, hosted }: { slug: string; hosted: boolean
         hasBlog={data.posts.length > 0}
         data={data}
         logo={assets.find((x) => x.kind === "logo")?.url}
+        logoTone={(assets.find((x) => x.kind === "logo")?.meta as { tone?: "light" | "dark" } | undefined)?.tone}
       />
     </>
   );

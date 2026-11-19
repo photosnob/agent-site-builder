@@ -3,6 +3,7 @@ import { PlatformAnalytics } from "@/components/PlatformAnalytics";
 import { BRAND, BrandFonts } from "@/components/marketing/Brand";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing/Chrome";
 import { TemplateThumb } from "@/components/app/TemplateThumb";
+import { HeroCarousel } from "@/components/marketing/HeroCarousel";
 import { TEMPLATE_LIST } from "@/lib/templates";
 
 // Early access is free for a limited time. Bring back a price here once payments are connected.
@@ -78,35 +79,7 @@ export default function Home() {
             <p className={label} style={{ color: BRAND.taupe }}>{OFFER} · no credit card needed</p>
           </div>
 
-          {/* Illustration of an agent site being edited by prompt. */}
-          <div aria-hidden className="overflow-hidden rounded border bg-white" style={{ borderColor: BRAND.sand, boxShadow: "0 30px 60px -30px rgba(17,17,16,.35)" }}>
-            <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: BRAND.sand }}>
-              {[0, 1, 2].map((i) => <span key={i} className="h-2.5 w-2.5 rounded-full" style={{ background: BRAND.sand }} />)}
-              <span className={`ml-3 ${label}`} style={{ color: BRAND.taupe }}>yourname.com</span>
-            </div>
-            <div className="flex items-center gap-6 px-6 py-10 sm:px-8" style={{ background: "#1E2A2B", color: BRAND.ivory }}>
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-[10px] uppercase tracking-[0.18em] sm:h-24 sm:w-24" style={{ background: "#3B4A4B", color: "#C9CFCF" }}>headshot</div>
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "#C9CFCF" }}>your brokerage</span>
-                <span className="text-[32px] leading-none" style={serif}>Your Name</span>
-                <span className="text-sm" style={{ color: "#C9CFCF" }}>Homes in your market</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3 p-5">
-              {["#EDE5D8", BRAND.sand, "#EDE5D8"].map((c, i) => (
-                <div key={i} className="flex flex-col gap-1.5">
-                  <div className="aspect-[4/3] rounded-[10px]" style={{ background: c }} />
-                  <span className="text-xs font-semibold">Listing address</span>
-                  <span className="text-[11px]" style={{ color: BRAND.taupe }}>imported listing</span>
-                </div>
-              ))}
-            </div>
-            <div className="mx-5 mb-5 flex items-center gap-3 rounded-[14px] px-4 py-3.5" style={{ background: BRAND.evergreen, color: BRAND.ivory }}>
-              <span className="h-7 w-7 shrink-0 rounded-lg" style={{ background: BRAND.brass }} />
-              <span className="flex-1 text-sm">“Make the hero darker and add my Eichler listings first.”</span>
-              <span className="hidden text-[11px] uppercase tracking-[0.18em] sm:inline" style={{ color: BRAND.sage }}>editing…</span>
-            </div>
-          </div>
+          <HeroCarousel />
         </section>
 
         <section id="features" className="border-y bg-white" style={{ borderColor: BRAND.sand }}>

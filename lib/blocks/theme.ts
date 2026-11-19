@@ -22,6 +22,12 @@ export const PALETTES = {
   // Bright look: white, black type, grey for the second half of two-tone headlines.
   bright: { bg: "#ffffff", surface: "#f3f3f1", text: "#0b0b0b", muted: "#6f6f6b", accent: "#151717", accentText: "#ffffff" },
   "bright-cobalt": { bg: "#ffffff", surface: "#f1f4f9", text: "#0b1220", muted: "#667085", accent: "#1d4ed8", accentText: "#ffffff" },
+  // Monument look: warm paper white, black type, an oxblood statement color.
+  monument: { bg: "#f4f2ef", surface: "#e8e4de", text: "#0b0b0b", muted: "#57534d", accent: "#7a0c07", accentText: "#ffffff" },
+  "monument-ink": { bg: "#f1f1f1", surface: "#e2e2e2", text: "#0b0b0b", muted: "#555555", accent: "#141414", accentText: "#ffffff" },
+  // Heritage look: navy type, copper details, white and pale grey.
+  heritage: { bg: "#ffffff", surface: "#f1f3f4", text: "#1e232d", muted: "#5b626e", accent: "#a56b3d", accentText: "#ffffff" },
+  "heritage-slate": { bg: "#ffffff", surface: "#eef2f4", text: "#1e2a33", muted: "#58636c", accent: "#4a6577", accentText: "#ffffff" },
 } as const;
 export type PaletteName = keyof typeof PALETTES;
 
@@ -33,10 +39,12 @@ export const FONT_PAIRS = {
   "montserrat": { heading: "'Montserrat', system-ui, sans-serif", body: "'Montserrat', system-ui, sans-serif", google: "Montserrat:wght@300;400;500;600" },
   "riviera": { heading: "'Cormorant Garamond', Georgia, serif", body: "'Nunito Sans', system-ui, sans-serif", google: "Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Nunito+Sans:wght@300;400;600" },
   "grotesk": { heading: "'Instrument Sans', system-ui, sans-serif", body: "'Instrument Sans', system-ui, sans-serif", google: "Instrument+Sans:wght@400;500;600;700" },
+  "monument": { heading: "'Inter Tight', 'Helvetica Neue', Arial, sans-serif", body: "'Inter Tight', 'Helvetica Neue', Arial, sans-serif", google: "Inter+Tight:wght@400;500;700;800&family=Instrument+Serif:ital@0;1" },
+  "heritage": { heading: "'Tenor Sans', 'Gill Sans', sans-serif", body: "'Figtree', system-ui, sans-serif", google: "Tenor+Sans&family=Figtree:wght@300;400;500;600" },
 } as const;
 export type FontPairName = keyof typeof FONT_PAIRS;
 
-export const LOOKS = ["classic", "noir", "riviera", "bright"] as const;
+export const LOOKS = ["classic", "noir", "riviera", "bright", "monument", "heritage"] as const;
 export type Look = (typeof LOOKS)[number];
 
 export const Theme = z.object({

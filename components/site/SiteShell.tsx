@@ -12,13 +12,15 @@ type Agent = Partial<AgentProfile>;
  * `overlayHeader` floats a transparent header over a full-screen hero.
  */
 export function SiteShell({
-  theme, agent, base, hasBlog, blogHref, nav = [], logo, overlayHeader = false, sections = { listings: true, about: true }, children,
+  theme, agent, base, hasBlog, blogHref, nav = [], logo, logoTone, overlayHeader = false, sections = { listings: true, about: true }, children,
 }: {
   theme: Theme; agent: Agent; base?: string; hasBlog?: boolean;
   /** Where the Blog link goes when there's no base (dashboard preview links to the live blog). */
   blogHref?: string;
   nav?: NavPage[];
   logo?: string;
+  /** "light" logos (gold, white, pastels) keep their colors over photos; dark ones turn white. */
+  logoTone?: "light" | "dark";
   overlayHeader?: boolean;
   sections?: { listings: boolean; about: boolean };
   children: React.ReactNode;
@@ -36,7 +38,7 @@ export function SiteShell({
   ];
   const brand = logo ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo} alt={agent.name ?? "Home"} className={`h-10 w-auto max-w-[200px] object-contain sm:h-12 ${overlayHeader ? "brightness-0 invert" : ""}`} />
+    <img src={logo} alt={agent.name ?? "Home"} className={`h-10 w-auto max-w-[200px] object-contain sm:h-12 ${overlayHeader && logoTone !== "light" ? "brightness-0 invert" : ""}`} />
   ) : (
     <span className="site-heading text-lg font-bold">{agent.name}</span>
   );
@@ -45,7 +47,7 @@ export function SiteShell({
   const fonts = <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${FONT_PAIRS[theme.fonts].google}&display=swap`} />;
   const wordmark = (cls: string) => logo
     // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={logo} alt={agent.name ?? "Home"} className={`h-9 w-auto max-w-[180px] object-contain sm:h-11 ${overlayHeader ? "brightness-0 invert" : ""}`} />
+    ? <img src={logo} alt={agent.name ?? "Home"} className={`h-9 w-auto max-w-[180px] object-contain sm:h-11 ${overlayHeader && logoTone !== "light" ? "brightness-0 invert" : ""}`} />
     : <span className={cls}>{agent.name}</span>;
   const menuLinks = [...links, { href: anchor("contact"), label: "Contact" }];
 
@@ -64,6 +66,22 @@ export function SiteShell({
               <a href={anchor("contact")} className="site-btn !px-5 !py-2.5 text-sm">Contact</a>
               <div className="lg:hidden"><LookMenu links={menuLinks} /></div>
             </div>
+          </div>
+        </header>
+      ) : look === "monument" ? (
+        <header className={bar} style={barStyle}>
+          <div className="site-container grid grid-cols-[1fr_auto_1fr] items-center py-5 text-[11px] font-bold uppercase tracking-[0.12em]">
+            <div><LookMenu links={menuLinks} showLabel /></div>
+            <a href={home || "#"} aria-label={`${agent.name ?? "Home"} home`} className="text-center">{wordmark("site-heading text-lg font-extrabold uppercase tracking-[-0.02em] sm:text-2xl")}</a>
+            <a href={anchor("contact")} className="justify-self-end hover:opacity-70">Let&apos;s talk <span aria-hidden>↗</span></a>
+          </div>
+        </header>
+      ) : look === "heritage" ? (
+        <header className={bar} style={barStyle}>
+          <div className="site-container grid grid-cols-[1fr_auto_1fr] items-center py-5">
+            <div className="text-[11px] uppercase tracking-[0.28em]">{agent.phone ? <a href={`tel:${agent.phone}`} className="hidden hover:opacity-70 sm:inline">{agent.phone}</a> : null}</div>
+            <a href={home || "#"} aria-label={`${agent.name ?? "Home"} home`} className="text-center">{wordmark("site-heading text-lg uppercase tracking-[0.3em] sm:text-xl")}</a>
+            <div className="justify-self-end"><LookMenu links={menuLinks} /></div>
           </div>
         </header>
       ) : look === "noir" ? (
@@ -130,7 +148,9 @@ export function SiteShell({
 /** Rendered from the agent record, never from editable content: AI edits cannot touch it. */
 function ComplianceFooter({ agent, look = "classic" }: { agent: Agent; look?: string }) {
   // Riviera ends on a dark band like its contact section; the others follow the page.
-  const dark = look === "riviera" ? ({ "--text": "#f5f2ec", "--muted": "#a8a29a", background: "#0d0d0d", borderColor: "#262421", color: "#a8a29a" } as React.CSSProperties) : null;
+  const dark = look === "monument" ? ({ "--text": "#f4f2ef", "--muted": "#a8a39b", background: "#0b0b0b", borderColor: "#262421", color: "#a8a39b" } as React.CSSProperties)
+    : look === "heritage" ? ({ "--text": "#ffffff", "--muted": "#b8bec8", background: "#1e232d", borderColor: "#2e3442", color: "#b8bec8" } as React.CSSProperties)
+    : look === "riviera" ? ({ "--text": "#f5f2ec", "--muted": "#a8a29a", background: "#0d0d0d", borderColor: "#262421", color: "#a8a29a" } as React.CSSProperties) : null;
   return (
     <footer className={`border-t py-10 text-xs ${look === "classic" ? "mt-10" : ""}`} style={dark ?? { borderColor: look === "classic" ? "var(--surface)" : "color-mix(in srgb, var(--text) 10%, transparent)", color: "var(--muted)" }}>
       <div className="site-container space-y-2">

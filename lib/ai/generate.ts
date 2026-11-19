@@ -127,7 +127,7 @@ export async function generateSite(input: {
         subheadline: safe(copy.hero.subheadline, fallback.hero.subheadline),
         ctaLabel: copy.hero.ctaLabel || "Let's talk",
         ctaTarget: "contact",
-        image: ["estate", "noir", "riviera", "bright"].includes(templateId) ? (listings[0]?.url ?? headshot) : headshot,
+        image: ["estate", "noir", "riviera", "bright", "monument", "heritage"].includes(templateId) ? (listings[0]?.url ?? headshot) : headshot,
         ...(TEMPLATES[templateId].theme.heroStyle === "video" && stockVideo ? { videoUrl: stockVideo, videoSpeed: 0.75 } : {}),
       },
     }),

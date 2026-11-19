@@ -13,8 +13,8 @@ import { LeadForm } from "./LeadForm";
  */
 
 type Agent = Partial<AgentProfile>;
-type Of<T extends Block["type"]> = Extract<Block, { type: T }>;
-type Ctx = { look: Exclude<Look, "classic">; theme: Theme; agent: Agent; siteId: string; interactive: boolean; headshot?: string; data: SiteData };
+export type Of<T extends Block["type"]> = Extract<Block, { type: T }>;
+export type Ctx = { look: Exclude<Look, "classic">; theme: Theme; agent: Agent; siteId: string; interactive: boolean; headshot?: string; data: SiteData };
 
 export const anchorFor = (t: string) => (t === "listings" ? "#listings" : t === "valuation" ? "#contact?intent=valuation" : "#contact");
 
@@ -28,10 +28,10 @@ export function listingItems(data: SiteData, b: Of<"featured-listings">) {
     : b.props.items.map((l) => ({ ...l, beds: undefined as number | undefined, baths: undefined as number | undefined, sqft: undefined as number | undefined, href: undefined as string | undefined }));
 }
 
-const facts = (l: { beds?: number; baths?: number; sqft?: number }) =>
+export const facts = (l: { beds?: number; baths?: number; sqft?: number }) =>
   [l.beds && `${l.beds} beds`, l.baths && `${l.baths} baths`, l.sqft && `${l.sqft.toLocaleString()} sq ft`].filter(Boolean).join(" · ");
 
-const paragraphs = (s: string) => s.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+export const paragraphs = (s: string) => s.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
 /** Small uppercase label above a heading. */
 function Eyebrow({ look, children, light }: { look: Ctx["look"]; children: React.ReactNode; light?: boolean }) {
@@ -79,7 +79,7 @@ function RivieraTitle({ text }: { text: string }) {
 }
 
 /** Background media for a hero: video, slideshow or photo, whichever this site has. */
-function HeroMedia({ p, theme, headshot }: { p: Of<"hero">["props"]; theme: Theme; headshot?: string }) {
+export function HeroMedia({ p, theme, headshot }: { p: Of<"hero">["props"]; theme: Theme; headshot?: string }) {
   const poster = p.image ?? p.slides?.[0] ?? headshot;
   if (theme.heroStyle === "video" && p.videoUrl) {
     return (

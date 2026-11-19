@@ -66,6 +66,26 @@ body {
 .site-root[data-look="bright"] .site-btn,
 .site-root[data-look="bright"] .site-btn-ghost { border-radius: 999px; padding: 0.85rem 1.5rem; font-weight: 600; }
 
+/* Monument: heavy condensed caps, editorial serif paragraphs, square buttons */
+.site-root[data-look="monument"] .site-heading { font-weight: 800; }
+.site-root[data-look="monument"] .look-serif { font-family: "Instrument Serif", ui-serif, Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
+.site-root[data-look="monument"] .site-btn,
+.site-root[data-look="monument"] .site-btn-ghost { border-radius: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; padding: 1rem 1.6rem; }
+/* The hero stays pinned while the rest of the page slides up over it (a "curtain"),
+   and each listing card pins in turn so the next one stacks on top. */
+@media (prefers-reduced-motion: no-preference) {
+  .site-root[data-look="monument"] main > section[data-block-type="hero"]:first-child { position: sticky; top: 0; z-index: 0; }
+  .site-root[data-look="monument"] main > section:not([data-block-type="hero"]) { position: relative; z-index: 1; background: var(--bg); }
+  .site-root[data-look="monument"] .look-stack { position: sticky; top: 0; }
+}
+.site-root[data-look="monument"] footer { position: relative; z-index: 1; }
+
+/* Heritage: light spaced capitals, copper accents, square buttons */
+.site-root[data-look="heritage"] .site-heading { font-weight: 400; }
+.site-root[data-look="heritage"] .site-btn,
+.site-root[data-look="heritage"] .site-btn-ghost { border-radius: 0; text-transform: uppercase; letter-spacing: 0.28em; font-size: 0.7rem; font-weight: 500; padding: 1rem 1.9rem; }
+.site-root[data-look="heritage"] { font-weight: 300; }
+
 /* Form fields stay visible on dark looks and dark bands */
 .site-root[data-look] form input, .site-root[data-look] form textarea {
   border-color: color-mix(in srgb, var(--text) 22%, transparent) !important;

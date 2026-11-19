@@ -1,7 +1,7 @@
 import type { Theme } from "@/lib/blocks/theme";
 import type { BlockType } from "@/lib/blocks/schema";
 
-export type TemplateId = "modern" | "estate" | "midcentury" | "noir" | "riviera" | "bright";
+export type TemplateId = "modern" | "estate" | "midcentury" | "noir" | "riviera" | "bright" | "monument" | "heritage";
 
 export interface Template {
   id: TemplateId;
@@ -10,6 +10,8 @@ export interface Template {
   theme: Theme;
   /** Palettes a prompt may switch to while staying in this template's style. */
   allowedPalettes: Theme["palette"][];
+  /** Retired from the picker; existing sites on it keep working. */
+  hidden?: boolean;
   /** Short line for the template picker's preview card. */
   preview?: { dark: boolean; headline: string };
   /** Default page structure. Generation fills these; edits may add/remove optional ones. */
@@ -20,6 +22,7 @@ export interface Template {
 export const TEMPLATES: Record<TemplateId, Template> = {
   modern: {
     id: "modern",
+    hidden: true,
     name: "Modern",
     description: "Clean sans-serif, lots of white space, listings up front.",
     theme: { palette: "navy", fonts: "sans-modern", radius: "soft", heroStyle: "split", look: "classic" },
@@ -38,12 +41,31 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   },
   midcentury: {
     id: "midcentury",
+    hidden: true,
     name: "Mid-Century",
     description: "Geometric type and teak/atomic colors for architectural specialists.",
     theme: { palette: "teak", fonts: "geometric", radius: "round", heroStyle: "centered", look: "classic" },
     allowedPalettes: ["teak", "atomic", "forest", "ink"],
     layout: ["hero", "about", "neighborhoods", "featured-listings", "testimonials", "cta", "contact"],
     voiceHint: "knowledgeable, warm, design-literate; specific about architecture",
+  },
+  monument: {
+    id: "monument",
+    name: "Monument",
+    description: "Oversized type and an oxblood statement section; photos slide over each other as you scroll.",
+    theme: { palette: "monument", fonts: "monument", radius: "none", heroStyle: "full-bleed", look: "monument" },
+    allowedPalettes: ["monument", "monument-ink"],
+    layout: ["hero", "about", "stats", "featured-listings", "neighborhoods", "testimonials", "cta", "contact"],
+    voiceHint: "confident, direct, few words; statements rather than sales talk",
+  },
+  heritage: {
+    id: "heritage",
+    name: "Heritage",
+    description: "Navy and copper with spaced capitals; a cinematic hero and photos that drift as you scroll.",
+    theme: { palette: "heritage", fonts: "heritage", radius: "none", heroStyle: "full-bleed", look: "heritage" },
+    allowedPalettes: ["heritage", "heritage-slate"],
+    layout: ["hero", "about", "stats", "featured-listings", "neighborhoods", "cta", "testimonials", "contact"],
+    voiceHint: "polished, reassuring, service-minded; understated luxury",
   },
   noir: {
     id: "noir",
@@ -74,4 +96,6 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   },
 };
 
-export const TEMPLATE_LIST = Object.values(TEMPLATES);
+/** Templates offered to new sites, in display order (retired ones stay in TEMPLATES for existing sites). */
+const ORDER: TemplateId[] = ["monument", "estate", "heritage", "noir", "riviera", "bright"];
+export const TEMPLATE_LIST = ORDER.map((id) => TEMPLATES[id]).filter((t) => !t.hidden);

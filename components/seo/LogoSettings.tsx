@@ -92,6 +92,7 @@ export function LogoSettings({ siteId, current, agentName }: { siteId: string; c
     const fd = new FormData();
     fd.set("file", new File([blob], "logo.png", { type: "image/png" }));
     fd.set("kind", "logo");
+    fd.set("tone", await logoTone(blob));
     const res = await fetch(`/api/sites/${siteId}/assets`, { method: "POST", body: fd });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -167,4 +168,22 @@ export function LogoSettings({ siteId, current, agentName }: { siteId: string; c
       {msg && (msg.ok || !prep) && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
     </section>
   );
+}
+
+/** "light" if the logo's visible pixels are mostly pale (gold, white, pastels), so it can sit on dark photos as-is. */
+async function logoTone(blob: Blob): Promise<"light" | "dark"> {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const w = Math.min(300, bmp.width), h = Math.max(1, Math.round((bmp.height * w) / bmp.width));
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const ctx = c.getContext("2d")!; ctx.drawImage(bmp, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const a = d[i + 3] / 255;
+      if (a < 0.5) continue;
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return n && sum / n > 0.55 ? "light" : "dark";
+  } catch { return "dark"; }
 }

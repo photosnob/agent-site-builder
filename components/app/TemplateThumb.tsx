@@ -6,7 +6,7 @@ import type { Template } from "@/lib/templates";
  * size (it's an SVG), so it works in the onboarding picker and on the homepage.
  */
 // Real screenshots of each template with a sample agent (public/templates/<id>.webp).
-const PREVIEWS = new Set(["modern", "estate", "midcentury", "noir", "riviera", "bright"]);
+const PREVIEWS = new Set(["modern", "estate", "midcentury", "noir", "riviera", "bright", "monument", "heritage"]);
 
 export function TemplateThumb({ t, tall = false }: { t: Template; tall?: boolean }) {
   if (PREVIEWS.has(t.id)) {

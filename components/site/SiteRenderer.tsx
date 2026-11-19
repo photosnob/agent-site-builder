@@ -8,6 +8,7 @@ import { LeadForm } from "./LeadForm";
 import { HeroSlideshow } from "./HeroSlideshow";
 import { SiteShell } from "./SiteShell";
 import { LookBlock, heroHasMedia } from "./looks";
+import { LookBlock2 } from "./looks2";
 
 type Agent = Partial<AgentProfile>;
 
@@ -32,6 +33,7 @@ export function SiteRenderer({
   blogHref,
   data = EMPTY_DATA,
   logo,
+  logoTone,
 }: {
   content: AnyContent;
   theme: Theme;
@@ -46,11 +48,12 @@ export function SiteRenderer({
   /** Listings, reviews, team, posts and nav pages for data-driven sections. */
   data?: SiteData;
   logo?: string;
+  logoTone?: "light" | "dark";
 }) {
   const blocks = content.blocks;
   const look = theme.look ?? "classic";
   const first = blocks[0]?.type === "hero" ? blocks[0] : null;
-  const overlay = look === "classic"
+  const overlay = look === "monument" || look === "heritage" ? Boolean(first) : look === "classic"
     ? Boolean(first && (
         (theme.heroStyle === "video" && Boolean(first.props.videoUrl)) ||
         (theme.heroStyle === "slideshow" && (first.props.slides?.length ?? 0) > 0) ||
@@ -65,12 +68,15 @@ export function SiteRenderer({
       blogHref={blogHref}
       nav={data.nav}
       logo={logo}
+      logoTone={logoTone}
       overlayHeader={overlay}
       sections={{ listings: blocks.some((b) => b.type === "featured-listings"), about: blocks.some((b) => b.type === "about") }}
     >
       {blocks.map((b) => (
         <section key={b.id} data-block-id={b.id} data-block-type={b.type}>
-          {(look !== "classic" && <LookBlock block={b} ctx={{ look, theme, agent, siteId, interactive, headshot, data }} />) ||
+          {(look === "monument" || look === "heritage"
+            ? LookBlock2({ block: b, ctx: { look, theme, agent, siteId, interactive, headshot, data } })
+            : look !== "classic" && <LookBlock block={b} ctx={{ look, theme, agent, siteId, interactive, headshot, data }} />) ||
             <BlockView block={b} theme={theme} agent={agent} siteId={siteId} interactive={interactive} headshot={headshot} data={data} base={base} />}
         </section>
       ))}
