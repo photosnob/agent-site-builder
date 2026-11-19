@@ -59,6 +59,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-700">{notice}</p>}
         <button className="w-full rounded-[2px] px-4 py-3 text-[15px] font-bold disabled:opacity-60" style={{ background: mode === "signup" ? BRAND.brass : BRAND.evergreen, color: mode === "signup" ? BRAND.evergreen : BRAND.ivory }} disabled={busy}>{busy ? "…" : mode === "signup" ? "create my account." : "sign in."}</button>
+        {mode === "signup" && <p className="text-xs leading-relaxed text-stone-500">By creating an account, you agree to our <Link className="underline" href="/terms" target="_blank">Terms of Service</Link> and <Link className="underline" href="/privacy" target="_blank">Privacy Policy</Link>.</p>}
       </form>
       <p className="mt-6 text-sm text-stone-500">
         {mode === "signup" ? <>Already have an account? <Link className="underline" href="/login">Sign in</Link></> : <>New here? <Link className="underline" href="/signup">Create an account</Link></>}

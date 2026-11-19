@@ -47,6 +47,8 @@ export function MarketingFooter({ topHref = "#top" }: { topHref?: string }) {
           <Link href="/#pricing" className="hover:underline">pricing.</Link>
           <Link href="/blog" className="hover:underline">blog.</Link>
           <Link href="/login" className="hover:underline">sign in.</Link>
+          <Link href="/terms" className="hover:underline">terms.</Link>
+          <Link href="/privacy" className="hover:underline">privacy.</Link>
         </nav>
         <a href={topHref} className="hover:underline">back to top ↑</a>
       </div>
