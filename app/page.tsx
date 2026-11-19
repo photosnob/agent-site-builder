@@ -85,7 +85,7 @@ export default function Home() {
         <section id="features" className="border-y bg-white" style={{ borderColor: BRAND.sand }}>
           <div className="mx-auto flex max-w-[1280px] flex-col gap-16 px-5 py-24 sm:px-8">
             <div className="flex flex-wrap items-end justify-between gap-6">
-              <h2 className={`${h2} max-w-[760px]`} style={serif}>Websites that don’t go stale.</h2>
+              <h2 className={`${h2} max-w-[760px]`} style={serif}>A website that keeps up with you.</h2>
               <p className={label} style={{ color: BRAND.taupe }}>no editor · no developer · no waiting</p>
             </div>
             {FEATURES.map((f) => (
@@ -109,7 +109,7 @@ export default function Home() {
         </section>
 
         <section id="how" className="mx-auto flex max-w-[1280px] flex-col gap-10 px-5 py-24 sm:px-8">
-          <h2 className={h2} style={serif}>Live in four steps<span style={{ color: BRAND.brass }}>.</span></h2>
+          <h2 className={h2} style={serif}>Simple from start to launch<span style={{ color: BRAND.brass }}>.</span></h2>
           <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(([n, t, d], i) => (
               <li key={n} className="flex flex-col gap-2.5 border-t-2 pt-5" style={{ borderColor: i === 3 ? BRAND.brass : BRAND.evergreen }}>
@@ -124,7 +124,7 @@ export default function Home() {
         <section id="templates" style={{ background: BRAND.evergreen, color: BRAND.ivory }}>
           <div className="mx-auto flex max-w-[1280px] flex-col gap-10 px-5 py-24 sm:px-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <h2 className={h2} style={serif}>Templates that look<br />like a top producer.</h2>
+              <h2 className={h2} style={serif}>Find the perfect look<br />for your agency.</h2>
               <Link href="/signup" className="rounded-[2px] border px-5 py-3 font-medium" style={{ borderColor: BRAND.ivory }}>start with one.</Link>
             </div>
             <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
