@@ -8,17 +8,23 @@ import { getSiteData } from "@/lib/siteData";
 import { publicSiteUrl } from "@/lib/siteUrls";
 import type { AnyContent } from "@/lib/blocks/schema";
 import type { Theme } from "@/lib/blocks/theme";
+import { siteImagePrefix } from "@/lib/blog/server";
+import { applyHero, decodeHero, heroMediaError } from "@/lib/hero";
+import { stockPrefix } from "@/lib/media";
 
-/** Owner-only draft preview. ?page=<slug> previews an inner page; ?rev=<id> previews a proposed AI edit. */
+/**
+ * Owner-only draft preview. ?page=<slug> previews an inner page; ?rev=<id> previews a proposed AI edit;
+ * ?hero=<encoded settings> previews hero changes the agent hasn't saved yet (home page only).
+ */
 export default async function Preview({
   params,
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ rev?: string; page?: string }>;
+  searchParams: Promise<{ rev?: string; page?: string; hero?: string }>;
 }) {
   const { siteId } = await params;
-  const { rev, page } = await searchParams;
+  const { rev, page, hero } = await searchParams;
   const owned = await getOwnedSite(siteId);
   let site = owned.site;
   let supabase: Pick<typeof owned.supabase, "from"> = owned.supabase;
@@ -43,6 +49,12 @@ export default async function Preview({
     if (data) ({ content, theme } = data as { content: AnyContent; theme: Theme });
   }
   if (!content || !theme) return <p className="p-10 text-sm text-stone-500">Nothing generated yet.</p>;
+  if (hero && !page && !rev) {
+    const h = decodeHero(hero);
+    // Same media rules as saving, so the preview never shows something that can't be saved.
+    const next = h && !heroMediaError(h, siteImagePrefix(siteId), stockPrefix()) ? applyHero(content, theme, h) : null;
+    if (next) ({ content, theme } = next);
+  }
 
   const [assets, data] = await Promise.all([getAssets(siteId), getSiteData(siteId, { publishedPagesOnly: false })]);
   return (

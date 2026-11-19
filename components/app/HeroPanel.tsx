@@ -6,6 +6,7 @@ import { uploadPhoto } from "@/components/manage/shared";
 type Style = "full-bleed" | "split" | "centered" | "video" | "slideshow";
 type Asset = { id: string; url: string; kind: string; meta: { type?: string } };
 import { HeroVideo } from "@/components/site/HeroVideo";
+import type { HeroSettings } from "@/lib/hero";
 
 const SPEEDS: [number, string][] = [[0.25, "0.25×"], [0.5, "0.5×"], [0.75, "0.75×"], [1, "Normal"], [1.25, "1.25×"], [1.5, "1.5×"]];
 
@@ -20,7 +21,11 @@ const STYLES: { id: Style; label: string; hint: string }[] = [
 ];
 
 /** Home hero style and media. Saves to the draft (undoable); publish to go live. */
-export function HeroPanel({ siteId, initial, assets, onSaved, openSignal = 0 }: { siteId: string; initial: HeroState; assets: Asset[]; onSaved: () => void; openSignal?: number }) {
+export function HeroPanel({ siteId, initial, assets, onSaved, onPreview, openSignal = 0 }: {
+  siteId: string; initial: HeroState; assets: Asset[]; onSaved: () => void; openSignal?: number;
+  /** Called with the unsaved settings (or null when there's nothing unsaved) so the preview can show them. */
+  onPreview?: (settings: HeroSettings | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -68,14 +73,26 @@ export function HeroPanel({ siteId, initial, assets, onSaved, openSignal = 0 }: 
       } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
     }
     setBusy(null);
-    setMsg((m) => (m && !m.ok ? m : { ok: true, text: "Uploaded and selected. Click Save hero to use it." }));
+    setMsg((m) => (m && !m.ok ? m : { ok: true, text: "Uploaded and selected. It\u2019s in the preview; click Save hero to keep it." }));
   }
+
+  const settings = (x: HeroState): HeroSettings => ({ heroStyle: x.style, image: x.image ?? null, videoUrl: x.videoUrl ?? null, videoSpeed: x.videoSpeed ?? 1, slides: x.slides, secondaryCtaLabel: x.secondaryCtaLabel || null, secondaryCtaTarget: x.secondaryCtaLabel ? x.secondaryCtaTarget ?? "listings" : null });
+
+  // Show unsaved changes in the preview, after a short pause so typing a button label doesn't reload it on every key.
+  const previewRef = useRef(onPreview);
+  previewRef.current = onPreview;
+  useEffect(() => {
+    if (!dirty) { previewRef.current?.(null); return; }
+    const t = setTimeout(() => previewRef.current?.(settings(h)), 350);
+    return () => clearTimeout(t);
+  }, [h, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => previewRef.current?.(null), []);
 
   async function save() {
     setBusy("save"); setMsg(null);
     const res = await fetch(`/api/sites/${siteId}/hero`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ heroStyle: h.style, image: h.image ?? null, videoUrl: h.videoUrl ?? null, videoSpeed: h.videoSpeed ?? 1, slides: h.slides, secondaryCtaLabel: h.secondaryCtaLabel || null, secondaryCtaTarget: h.secondaryCtaLabel ? h.secondaryCtaTarget ?? "listings" : null }),
+      body: JSON.stringify(settings(h)),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(null);
@@ -184,7 +201,12 @@ export function HeroPanel({ siteId, initial, assets, onSaved, openSignal = 0 }: 
           )}
 
           {msg && <p className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
-          {dirty && !busy && <p className="text-xs font-medium text-amber-700">You have unsaved hero changes.</p>}
+          {dirty && !busy && (
+            <p className="flex items-center justify-between gap-2 text-xs font-medium text-amber-700">
+              <span>Previewing unsaved hero changes.</span>
+              <button type="button" className="text-stone-500 underline" onClick={() => { setHRaw(initial); setDirty(false); setMsg(null); }}>Discard</button>
+            </p>
+          )}
           <button className="btn w-full" disabled={!!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save hero"}</button>
         </div>
       )}

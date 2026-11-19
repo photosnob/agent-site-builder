@@ -6,6 +6,7 @@ import { DashNav } from "./DashNav";
 import { HeroPanel, type HeroState } from "./HeroPanel";
 import { TemplatePanel } from "./TemplatePanel";
 import type { TemplateId } from "@/lib/templates";
+import { encodeHero, type HeroSettings } from "@/lib/hero";
 
 type PageRef = { id: string; slug: string; title: string; enabled: boolean };
 
@@ -41,10 +42,13 @@ export function Editor(props: {
   const [editsLeft, setEditsLeft] = useState(props.editsLeft);
   const [pageId, setPageId] = useState<string | null>(null);
   const [heroOpen, setHeroOpen] = useState(0);
+  const [heroDraft, setHeroDraft] = useState<HeroSettings | null>(null);
   const page = props.pages.find((p) => p.id === pageId) ?? null;
 
   const base = `/api/sites/${props.siteId}`;
-  const qs = new URLSearchParams({ ...(page ? { page: page.slug } : {}), ...(proposal?.revisionId ? { rev: proposal.revisionId } : {}) }).toString();
+  // Unsaved hero changes show on the home page preview (not while an AI edit is being previewed).
+  const heroQs: Record<string, string> = heroDraft && !page && !proposal ? { hero: encodeHero(heroDraft) } : {};
+  const qs = new URLSearchParams({ ...(page ? { page: page.slug } : {}), ...(proposal?.revisionId ? { rev: proposal.revisionId } : {}), ...heroQs }).toString();
   const previewSrc = `/preview/${props.siteId}${qs ? `?${qs}` : ""}`;
 
   async function call(label: string, path: string, body?: unknown) {
@@ -91,7 +95,7 @@ export function Editor(props: {
             <PagePicker pages={props.pages} value={pageId} disabled={!!proposal || !!busy} siteId={props.siteId}
               onChange={(id) => { setPageId(id); setPreviewKey((k) => k + 1); }} onChanged={() => router.refresh()} />
             {!pageId && tab === "edit" && <TemplatePanel siteId={props.siteId} current={props.template} onSwitched={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
-            {!pageId && tab === "edit" && <HeroPanel key={`${props.template}-${props.hero.style}`} siteId={props.siteId} initial={props.hero} assets={props.assets} openSignal={heroOpen} onSaved={() => { setPreviewKey((k) => k + 1); router.refresh(); }} />}
+            {!pageId && tab === "edit" && <HeroPanel key={`${props.template}-${props.hero.style}`} siteId={props.siteId} initial={props.hero} assets={props.assets} openSignal={heroOpen} onPreview={setHeroDraft} onSaved={() => { setHeroDraft(null); setPreviewKey((k) => k + 1); router.refresh(); }} />}
 
             {tab === "edit" && (
               <div className="space-y-4">
@@ -172,7 +176,8 @@ export function Editor(props: {
             )}
           </div>
         </aside>
-        <div className="min-h-0 bg-stone-100 p-3">
+        <div className="relative min-h-0 bg-stone-100 p-3">
+          {"hero" in heroQs && <span className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 shadow-sm">Preview: hero not saved yet</span>}
           <iframe key={`${previewKey}-${proposal?.revisionId ?? "draft"}`} ref={frame} src={previewSrc} title="Site preview" className="h-full w-full rounded-lg border border-stone-200 bg-white" />
         </div>
       </div>
